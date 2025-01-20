@@ -69,9 +69,41 @@ def create_payment():
 
         payment_url = create_gcash_payment(reference_id, amount, success_url, failure_url)
         if payment_url:
-            return jsonify({"payment_url": payment_url}), 200
+            return jsonify({"payment_url": payment_url, "reference_id": reference_id}), 200
         else:
             return jsonify({"error": "Failed to create payment"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+# Route to retrieve payment details
+@app.route("/payment-details/<reference_id>", methods=["GET"])
+def payment_details(reference_id):
+    try:
+        url = f"{BASE_URL}/payment_requests?reference_id={reference_id}"
+        encoded_api_key = base64.b64encode(f"{XENDIT_SECRET_KEY}:".encode()).decode()
+        headers = {"Authorization": f"Basic {encoded_api_key}"}
+
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return jsonify(response.json()), 200
+        else:
+            return jsonify({"error": response.json()}), response.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+# Route to list all payments
+@app.route("/list-payments", methods=["GET"])
+def list_payments():
+    try:
+        url = f"{BASE_URL}/payment_requests"
+        encoded_api_key = base64.b64encode(f"{XENDIT_SECRET_KEY}:".encode()).decode()
+        headers = {"Authorization": f"Basic {encoded_api_key}"}
+
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return jsonify(response.json()), 200
+        else:
+            return jsonify({"error": response.json()}), response.status_code
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -116,3 +148,4 @@ def create_gcash_payment(reference_id, amount, success_url, failure_url):
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
+    
