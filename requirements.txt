@@ -3,5 +3,3 @@ Flask==2.2.2
 gunicorn==23.0.0
 python-dotenv==0.21.0
 requests==2.28.1
-xendit==6.0.0
-xendit-python @ git+https://github.com/xendit/xendit-python.git@ec58a0d6bf9a6eb6c4d4200932a73094c76914b0
