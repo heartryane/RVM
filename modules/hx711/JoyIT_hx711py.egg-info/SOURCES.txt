@@ -1,0 +1,12 @@
+LICENSE
+README.md
+pyproject.toml
+setup.cfg
+setup.py
+JoyIT_hx711py/JoyIT_hx711py.py
+JoyIT_hx711py/__init__.py
+JoyIT_hx711py.egg-info/PKG-INFO
+JoyIT_hx711py.egg-info/SOURCES.txt
+JoyIT_hx711py.egg-info/dependency_links.txt
+JoyIT_hx711py.egg-info/not-zip-safe
+JoyIT_hx711py.egg-info/top_level.txt

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "JoyIT_hx711py"
+version = "0.1.1"
+authors = [
+  { name="j-dohnalek"},
+  { name="Joy-IT", email="service@joy-it.net" },
+]
+description = "Updated Python library for the HX711 load cell amplifier and Raspberry Pi 5"
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+]
+
+[project.urls]
+Homepage = "https://github.com/joy-it/JoyIT_hx711py"
