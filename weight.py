@@ -389,7 +389,7 @@ def validate_and_proceed(is_cash, new_window,main_window, label_display, rice_di
         show_custom_messagebox("Payment Method", "Please select a payment method")
         return
     if gcash_var.get():
-        proceed_with_gcash_payment()
+        home()
         new_window.withdraw()
     if cash_var.get():
         proceed(is_cash,new_window,main_window,label_display,rice_display)
@@ -1165,29 +1165,80 @@ def check_payment(cash_window, label_display, main_window, new_window,rice_displ
 
 import os
 import requests
-from flask import Flask, request, jsonify
-from threading import Thread
-import base64
-import tkinter as tk
-
+from flask import Flask, request, jsonify, render_template, redirect, url_for
+from dotenv import load_dotenv
+import hmac
 import time
+import base64
 
-# Flask app for handling callbacks
-app = Flask(__name__)
+# Load environment variables
+load_dotenv()
+XENDIT_SECRET_KEY = os.getenv("XENDIT_SECRET_KEY")
+X_CALLBACK_TOKEN = os.getenv("X_CALLBACK_TOKEN")
 
-# Xendit API Configuration
-XENDIT_SECRET_KEY = os.getenv(
-    "XENDIT_SECRET_KEY", "xnd_development_784ZEXK9AlW58ZU0G14xcX1riWoh9UbT1IMNu234woi3I9b7BPVZNpedKGoHkq"
-)
-X_CALLBACK_TOKEN = os.getenv("X_CALLBACK_TOKEN", "lWfixXJJo1y87WaLyL6G7rijl9VwYzQhmJ7lwYJsi0ldiP8f")
+# Validate environment variables
+if not XENDIT_SECRET_KEY or not X_CALLBACK_TOKEN:
+    raise EnvironmentError("Missing XENDIT_SECRET_KEY or X_CALLBACK_TOKEN.")
+
 BASE_URL = "https://api.xendit.co"
 
-# Function to create a one-time eWallet charge
+app = Flask(__name__)
+
+# Root route with a user-friendly form
+@app.route("/", methods=["GET", "POST"])
+def home():
+    if request.method == "POST":
+        # Process form submission
+        price = float(price_var.get())
+        success_url = url_for("success", _external=True)
+        failure_url = url_for("failure", _external=True)
+
+        # Generate a payment
+        reference_id = f"rvm_{int(time.time())}"
+        payment_url = create_gcash_payment(reference_id, float(price), success_url, failure_url)
+
+        import os
+        if os.name == "nt":  # Windows
+            os.system(f"start {payment_url}")
+
+        elif os.name == "posix":  # macOS/Linux
+            os.system(f"open {payment_url}")
+
+
+# Webhook endpoint for handling Xendit callbacks
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    x_callback_token = request.headers.get("X-CALLBACK-TOKEN")
+    if not hmac.compare_digest(x_callback_token, X_CALLBACK_TOKEN):
+        return jsonify({"error": "Invalid X-CALLBACK-TOKEN"}), 403
+
+    webhook_data = request.json
+    print("Webhook received:", webhook_data)
+
+    event = webhook_data.get("event")
+    if event == "ewallet.capture":
+        data = webhook_data.get("data")
+        print(f"Payment succeeded for Reference ID: {data.get('reference_id')}")
+    else:
+        print(f"Unhandled event: {event}")
+
+    return jsonify({"message": "Webhook processed successfully"}), 200
+
+# Success page route
+@app.route("/success", methods=["GET"])
+def success():
+    return "<h1>Payment Successful</h1><p>Thank you for your payment!</p>"
+
+# Failure page route
+@app.route("/failure", methods=["GET"])
+def failure():
+    return "<h1>Payment Failed</h1><p>We’re sorry, but your payment could not be processed.</p>"
+
+# Function to create a GCash payment request
 def create_gcash_payment(reference_id, price, success_url, failure_url):
     url = f"{BASE_URL}/payment_requests"
-    encoded_api_key = base64.b64encode(f"{XENDIT_SECRET_KEY}:".encode()).decode()
     headers = {
-        "Authorization": f"Basic {encoded_api_key}",
+        "Authorization": f"Basic {base64.b64encode(f'{XENDIT_SECRET_KEY}:'.encode()).decode()}",
         "Content-Type": "application/json",
     }
     payload = {
@@ -1219,54 +1270,10 @@ def create_gcash_payment(reference_id, price, success_url, failure_url):
         print("Error creating payment:", response.json())
         return None
 
-# Webhook endpoint to handle payment callbacks
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    x_callback_token = request.headers.get("X-CALLBACK-TOKEN")
-    if x_callback_token != X_CALLBACK_TOKEN:
-        return jsonify({"error": "Invalid X-CALLBACK-TOKEN"}), 403
-
-    webhook_data = request.json
-    print("Webhook received:", webhook_data)
-
-    event = webhook_data.get("event")
-    if event == "payment_method.activated":
-        data = webhook_data.get("data")
-        print(f"Payment method activated: {data}")
-    elif event == "ewallet.capture":
-        data = webhook_data.get("data")
-        print(f"Payment succeeded for Reference ID: {data.get('reference_id')}")
-        print(f"Actions: {data.get('actions')}")
-        # Log or handle actions for redirection
-    else:
-        print(f"Unhandled event: {event}")
-
-    return jsonify({"message": "Webhook processed successfully"}), 200
-
-
-# Function to handle GCash payment process
-def proceed_with_gcash_payment():
-    reference_id = f"rice_vending_{int(time.time())}"
-    price = float(price_var.get())
-    success_url = "https://yourdomain.com/success"
-    failure_url = "https://yourdomain.com/failure"
-
-    # Create GCash payment
-    payment_url = create_gcash_payment(reference_id, price, success_url, failure_url)
-
-    import os
-    if os.name == "nt":  # Windows
-        os.system(f"start {payment_url}")
-
-    elif os.name == "posix":  # macOS/Linux
-        os.system(f"open {payment_url}")
-
-# Start Flask app in a separate thread
-def run_flask():
-    app.run(port=8080, debug=False)
-
-flask_thread = Thread(target=run_flask, daemon=True)
-flask_thread.start()
+# Start the Flask server for Render
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
 
 
 """PAYMONGO_API_KEY = 'sk_test_6zVNpSMrK2VwWCCjqGQyygzt' 
