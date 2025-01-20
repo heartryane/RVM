@@ -1,11 +1,10 @@
 import os
 import requests
-from flask import Flask, request, jsonify
-import base64
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from dotenv import load_dotenv
 import hmac
-import hashlib
 import time
+import base64
 
 # Load environment variables
 load_dotenv()
@@ -20,10 +19,33 @@ BASE_URL = "https://api.xendit.co"
 
 app = Flask(__name__)
 
-# Root route for status checking
-@app.route("/", methods=["GET"])
+# Root route with a user-friendly form
+@app.route("/", methods=["GET", "POST"])
 def home():
-    return "<h1>Welcome to the RVM Payment Gateway</h1><p>Use the provided routes for payment processing.</p>"
+    if request.method == "POST":
+        # Process form submission
+        amount = request.form.get("amount")
+        success_url = url_for("success", _external=True)
+        failure_url = url_for("failure", _external=True)
+
+        # Generate a payment
+        reference_id = f"rvm_{int(time.time())}"
+        payment_url = create_gcash_payment(reference_id, float(amount), success_url, failure_url)
+
+        if payment_url:
+            return redirect(payment_url)  # Redirect user to GCash payment page
+        else:
+            return "<h1>Error creating payment. Please try again.</h1>", 500
+
+    # Render the form for user input
+    return '''
+    <h1>Welcome to the RVM Payment Gateway</h1>
+    <form method="POST">
+        <label for="amount">Enter Amount (PHP):</label><br>
+        <input type="number" id="amount" name="amount" required><br><br>
+        <button type="submit">Pay with GCash</button>
+    </form>
+    '''
 
 # Webhook endpoint for handling Xendit callbacks
 @app.route("/webhook", methods=["POST"])
@@ -36,10 +58,7 @@ def webhook():
     print("Webhook received:", webhook_data)
 
     event = webhook_data.get("event")
-    if event == "payment_method.activated":
-        data = webhook_data.get("data")
-        print(f"Payment method activated: {data}")
-    elif event == "ewallet.capture":
+    if event == "ewallet.capture":
         data = webhook_data.get("data")
         print(f"Payment succeeded for Reference ID: {data.get('reference_id')}")
     else:
@@ -57,62 +76,11 @@ def success():
 def failure():
     return "<h1>Payment Failed</h1><p>We’re sorry, but your payment could not be processed.</p>"
 
-# Route to create a GCash payment
-@app.route("/create-payment", methods=["POST"])
-def create_payment():
-    try:
-        data = request.json
-        reference_id = f"rvm_{int(time.time())}"
-        amount = data["amount"]
-        success_url = data["success_url"]
-        failure_url = data["failure_url"]
-
-        payment_url = create_gcash_payment(reference_id, amount, success_url, failure_url)
-        if payment_url:
-            return jsonify({"payment_url": payment_url, "reference_id": reference_id}), 200
-        else:
-            return jsonify({"error": "Failed to create payment"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-# Route to retrieve payment details
-@app.route("/payment-details/<reference_id>", methods=["GET"])
-def payment_details(reference_id):
-    try:
-        url = f"{BASE_URL}/payment_requests?reference_id={reference_id}"
-        encoded_api_key = base64.b64encode(f"{XENDIT_SECRET_KEY}:".encode()).decode()
-        headers = {"Authorization": f"Basic {encoded_api_key}"}
-
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            return jsonify(response.json()), 200
-        else:
-            return jsonify({"error": response.json()}), response.status_code
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-# Route to list all payments
-@app.route("/list-payments", methods=["GET"])
-def list_payments():
-    try:
-        url = f"{BASE_URL}/payment_requests"
-        encoded_api_key = base64.b64encode(f"{XENDIT_SECRET_KEY}:".encode()).decode()
-        headers = {"Authorization": f"Basic {encoded_api_key}"}
-
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            return jsonify(response.json()), 200
-        else:
-            return jsonify({"error": response.json()}), response.status_code
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
 # Function to create a GCash payment request
 def create_gcash_payment(reference_id, amount, success_url, failure_url):
     url = f"{BASE_URL}/payment_requests"
-    encoded_api_key = base64.b64encode(f"{XENDIT_SECRET_KEY}:".encode()).decode()
     headers = {
-        "Authorization": f"Basic {encoded_api_key}",
+        "Authorization": f"Basic {base64.b64encode(f'{XENDIT_SECRET_KEY}:'.encode()).decode()}",
         "Content-Type": "application/json",
     }
     payload = {
@@ -148,4 +116,3 @@ def create_gcash_payment(reference_id, amount, success_url, failure_url):
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-    
