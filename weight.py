@@ -1,6 +1,24 @@
+"""import gpiod"""
+import time
+import tkinter as tk
+from tkinter import messagebox, Button
+import qrcode
+import threading
+import base64
+import requests
+from PIL import Image, ImageTk, ImageDraw, ImageOps 
+import mysql.connector
+from io import BytesIO
+import re
+import subprocess
+from tkinter import ttk
+import sys
+from gif import AnimatedGIF
+from modules.hx711.JoyIT_hx711py.HX711_PY import HX711
+import weight11
 
 
-COIN_PIN = 17
+"""COIN_PIN = 17
 INHIBIT_PIN = 23
 BILL_PIN = 18
 
@@ -10,7 +28,7 @@ coin_line = chip.get_line(COIN_PIN)
 bill_line = chip.get_line(BILL_PIN)
 
 coin_line.request(consumer='coin_slot', type=gpiod.LINE_REQ_DIR_IN, default_val=0)
-bill_line.request(consumer='bill_acceptor', type=gpiod.LINE_REQ_DIR_IN, default_val=0)
+bill_line.request(consumer='bill_acceptor', type=gpiod.LINE_REQ_DIR_IN, default_val=0)"""
 
 
 def fetch_data_and_display():
@@ -375,12 +393,12 @@ def validate_and_proceed(is_cash, new_window,main_window, label_display, rice_di
         weight11.home()
         new_window.withdraw()
     if cash_var.get():
-        proceed(is_cash,new_window,main_window,label_display,rice_display)
+        """proceed(is_cash,new_window,main_window,label_display,rice_display)"""
 
         new_window.withdraw()
 
 
-# Initialize counts and price
+"""# Initialize counts and price
 pulse_count = 0
 bill_pulse_count = 0
 price = 0
@@ -402,7 +420,6 @@ POLLING_INTERVAL = 0.01  # Polling interval for fast response
 
 
 def monitor_inputs(cash_window, label_display, main_window, new_window,rice_display):
-    """Monitor coin and bill acceptor inputs and update the total amount."""
     global pulse_count, bill_pulse_count, total_amount, monitoring
     previous_coin_value = coin_line.get_value()
     previous_bill_value = bill_line.get_value()
@@ -452,10 +469,10 @@ def monitor_inputs(cash_window, label_display, main_window, new_window,rice_disp
 
         # Check if payment is sufficient
         check_payment(cash_window, label_display, main_window, new_window,rice_display)
+"""
 
 
-
-def confirm_cancel(new_window, cash_window):
+"""def confirm_cancel(new_window, cash_window):
     # Create a new top-level window for the custom messagebox
     confirm_window = tk.Toplevel(root)
     confirm_window.wm_attributes("-type", "override")
@@ -509,7 +526,7 @@ def confirm_cancel(new_window, cash_window):
 def Enable_button():
     global Back_button
     if Back_button:
-        Back_button.config(state=tk.NORMAL)  # Disable the Back button
+        Back_button.config(state=tk.NORMAL)  # Disable the Back button"""
 
 def disable_back_button():
     global Back_button
@@ -520,7 +537,7 @@ def blink_label1(label1):
     next_color = "#000000" if current_color == "green" else "green"
     label1.config(fg=next_color)
     label1.after(500, blink_label1, label1)
-def proceed(is_cash, new_window, main_window, rice_display, label_display):
+"""def proceed(is_cash, new_window, main_window, rice_display, label_display):
     global pulse_count, bill_pulse_count, progress_bar, percentage_label  # Declare progress bar and percentage label as global
 
     if is_cash:
@@ -651,7 +668,7 @@ def proceed(is_cash, new_window, main_window, rice_display, label_display):
         threading.Thread(target=monitor_inputs, args=(cash_window, label_display, main_window, new_window, rice_display), daemon=True).start()
 
         # Start dispensing rice
-        threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start()   
+        threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start()  """ 
 
 """
 def proceed(is_cash, new_window, main_window, rice_display, label_display):
@@ -740,7 +757,7 @@ def proceed(is_cash, new_window, main_window, rice_display, label_display):
         # Start dispensing rice
         threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start() """
 
-def cleanup1():
+"""def cleanup1():
     global monitoring
     monitoring = False
     try:
@@ -748,7 +765,7 @@ def cleanup1():
         bill_line.release()
     except Exception as e:
         print(f"Error during GPIO cleanup: {e}")
-
+"""
 hx = HX711(dout=16, pd_sck=5)
 hx.set_offset(8504030.4)  # Calibrated offset
 hx.set_scale(89.6353448)  # Calibrated scale
@@ -819,7 +836,7 @@ def insert_transaction(transaction_id, date_time, rice_type, price_per_unit, wei
             connection.close()
 
 
-from tkinter import ttk
+"""from tkinter import ttk
 def dispense_rice(label_display, price, new_window, cash_window, rice_display):
     """Dispense rice based on the price and selected servo, and update the progress bar."""
 
@@ -891,7 +908,7 @@ def dispense_rice(label_display, price, new_window, cash_window, rice_display):
 
         except Exception as e:
             print(f"Error during rice dispensing: {e}")
-    threading.Thread(target=rotate_and_dispense, daemon=True).start()
+    threading.Thread(target=rotate_and_dispense, daemon=True).start()"""
     
 def rice_dispensed1(new_window, cash_window, total_weight_to_dispense, total_amount, label_display, rice_display):
     dispensed_window1 = tk.Toplevel(root)
@@ -1138,14 +1155,14 @@ def disable_dispense_button():
     if open_button:
         open_button.config(state=tk.DISABLED)
 
-def check_payment(cash_window, label_display, main_window, new_window,rice_display):
+"""def check_payment(cash_window, label_display, main_window, new_window,rice_display):
     global total_amount, price
 
     if total_amount >= price:
         print("Payment successful!")
         cleanup1()  # Ensure GPIO resources are freed
         dispense_rice(label_display, price, new_window, cash_window, rice_display)
-
+"""
 
 
 """PAYMONGO_API_KEY = 'sk_test_6zVNpSMrK2VwWCCjqGQyygzt' 
