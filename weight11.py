@@ -153,12 +153,11 @@ if __name__ == "__main__":
 
 import os
 import requests
-from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import hmac
 import time
 import base64
-import weight
 
 # Load environment variables
 load_dotenv()
@@ -174,27 +173,24 @@ BASE_URL = "https://api.xendit.co"
 app = Flask(__name__)
 
 # Root route with a user-friendly form
-@app.route("/", methods=["GET", "POST"])
-def home():
-    if request.method == "POST":
-        # Process form submission
-        price = float(weight.price_var.get())
-        success_url = url_for("success", _external=True)
-        failure_url = url_for("failure", _external=True)
-
-        # Generate a payment
+@app.route("/create-payment", methods=["POST"])
+def create_payment():
+    try:
+        data = request.json
         reference_id = f"rvm_{int(time.time())}"
-        payment_url = create_gcash_payment(reference_id, float(price), success_url, failure_url)
+        amount = data["amount"]
+        success_url = data["success_url"]
+        failure_url = data["failure_url"]
 
-        import os
-        if os.name == "nt":  # Windows
-            os.system(f"start {payment_url}")
+        payment_url = create_gcash_payment(reference_id, amount, success_url, failure_url)
+        if payment_url:
+            return jsonify({"payment_url": payment_url, "reference_id": reference_id}), 200
+        else:
+            return jsonify({"error": "Failed to create payment"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
-        elif os.name == "posix":  # macOS/Linux
-            os.system(f"open {payment_url}")
 
-
-# Webhook endpoint for handling Xendit callbacks
 @app.route("/webhook", methods=["POST"])
 def webhook():
     x_callback_token = request.headers.get("X-CALLBACK-TOKEN")
@@ -208,6 +204,7 @@ def webhook():
     if event == "ewallet.capture":
         data = webhook_data.get("data")
         print(f"Payment succeeded for Reference ID: {data.get('reference_id')}")
+        # Here you can add logic to update the transaction status in your database
     else:
         print(f"Unhandled event: {event}")
 
@@ -223,8 +220,7 @@ def success():
 def failure():
     return "<h1>Payment Failed</h1><p>We’re sorry, but your payment could not be processed.</p>"
 
-# Function to create a GCash payment request
-def create_gcash_payment(reference_id, price, success_url, failure_url):
+def create_gcash_payment(reference_id, amount, success_url, failure_url):
     url = f"{BASE_URL}/payment_requests"
     headers = {
         "Authorization": f"Basic {base64.b64encode(f'{XENDIT_SECRET_KEY}:'.encode()).decode()}",
@@ -232,7 +228,7 @@ def create_gcash_payment(reference_id, price, success_url, failure_url):
     }
     payload = {
         "reference_id": reference_id,
-        "amount": price,
+        "amount": amount,
         "currency": "PHP",
         "country": "PH",
         "payment_method": {
@@ -253,13 +249,7 @@ def create_gcash_payment(reference_id, price, success_url, failure_url):
     if response.status_code == 201:
         data = response.json()
         print("Payment created successfully!")
-        print(f"Redirect URL: {data['actions'][0]['url']}")
         return data["actions"][0]["url"]
     else:
         print("Error creating payment:", response.json())
         return None
-
-# Start the Flask server for Render
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)

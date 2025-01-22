@@ -1,4 +1,4 @@
-"""import gpiod"""
+import gpiod
 import time
 import tkinter as tk
 from tkinter import messagebox, Button
@@ -18,7 +18,7 @@ from modules.hx711.JoyIT_hx711py.HX711_PY import HX711
 import weight11
 
 
-"""COIN_PIN = 17
+COIN_PIN = 17
 INHIBIT_PIN = 23
 BILL_PIN = 18
 
@@ -28,7 +28,7 @@ coin_line = chip.get_line(COIN_PIN)
 bill_line = chip.get_line(BILL_PIN)
 
 coin_line.request(consumer='coin_slot', type=gpiod.LINE_REQ_DIR_IN, default_val=0)
-bill_line.request(consumer='bill_acceptor', type=gpiod.LINE_REQ_DIR_IN, default_val=0)"""
+bill_line.request(consumer='bill_acceptor', type=gpiod.LINE_REQ_DIR_IN, default_val=0)
 
 
 def fetch_data_and_display():
@@ -390,15 +390,15 @@ def validate_and_proceed(is_cash, new_window,main_window, label_display, rice_di
         show_custom_messagebox("Payment Method", "Please select a payment method")
         return
     if gcash_var.get():
-        weight11.home()
+        create_gcash_payment(price)
         new_window.withdraw()
     if cash_var.get():
-        """proceed(is_cash,new_window,main_window,label_display,rice_display)"""
+        proceed(is_cash,new_window,main_window,label_display,rice_display)
 
         new_window.withdraw()
 
 
-"""# Initialize counts and price
+# Initialize counts and price
 pulse_count = 0
 bill_pulse_count = 0
 price = 0
@@ -420,6 +420,7 @@ POLLING_INTERVAL = 0.01  # Polling interval for fast response
 
 
 def monitor_inputs(cash_window, label_display, main_window, new_window,rice_display):
+    """Monitor coin and bill acceptor inputs and update the total amount."""
     global pulse_count, bill_pulse_count, total_amount, monitoring
     previous_coin_value = coin_line.get_value()
     previous_bill_value = bill_line.get_value()
@@ -469,10 +470,10 @@ def monitor_inputs(cash_window, label_display, main_window, new_window,rice_disp
 
         # Check if payment is sufficient
         check_payment(cash_window, label_display, main_window, new_window,rice_display)
-"""
 
 
-"""def confirm_cancel(new_window, cash_window):
+
+def confirm_cancel(new_window, cash_window):
     # Create a new top-level window for the custom messagebox
     confirm_window = tk.Toplevel(root)
     confirm_window.wm_attributes("-type", "override")
@@ -526,7 +527,7 @@ def monitor_inputs(cash_window, label_display, main_window, new_window,rice_disp
 def Enable_button():
     global Back_button
     if Back_button:
-        Back_button.config(state=tk.NORMAL)  # Disable the Back button"""
+        Back_button.config(state=tk.NORMAL)  # Disable the Back button
 
 def disable_back_button():
     global Back_button
@@ -537,7 +538,7 @@ def blink_label1(label1):
     next_color = "#000000" if current_color == "green" else "green"
     label1.config(fg=next_color)
     label1.after(500, blink_label1, label1)
-"""def proceed(is_cash, new_window, main_window, rice_display, label_display):
+def proceed(is_cash, new_window, main_window, rice_display, label_display):
     global pulse_count, bill_pulse_count, progress_bar, percentage_label  # Declare progress bar and percentage label as global
 
     if is_cash:
@@ -668,7 +669,7 @@ def blink_label1(label1):
         threading.Thread(target=monitor_inputs, args=(cash_window, label_display, main_window, new_window, rice_display), daemon=True).start()
 
         # Start dispensing rice
-        threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start()  """ 
+        threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start()   
 
 """
 def proceed(is_cash, new_window, main_window, rice_display, label_display):
@@ -757,7 +758,7 @@ def proceed(is_cash, new_window, main_window, rice_display, label_display):
         # Start dispensing rice
         threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start() """
 
-"""def cleanup1():
+def cleanup1():
     global monitoring
     monitoring = False
     try:
@@ -765,7 +766,7 @@ def proceed(is_cash, new_window, main_window, rice_display, label_display):
         bill_line.release()
     except Exception as e:
         print(f"Error during GPIO cleanup: {e}")
-"""
+
 hx = HX711(dout=16, pd_sck=5)
 hx.set_offset(8504030.4)  # Calibrated offset
 hx.set_scale(89.6353448)  # Calibrated scale
@@ -836,7 +837,7 @@ def insert_transaction(transaction_id, date_time, rice_type, price_per_unit, wei
             connection.close()
 
 
-"""from tkinter import ttk
+from tkinter import ttk
 def dispense_rice(label_display, price, new_window, cash_window, rice_display):
     """Dispense rice based on the price and selected servo, and update the progress bar."""
 
@@ -908,7 +909,7 @@ def dispense_rice(label_display, price, new_window, cash_window, rice_display):
 
         except Exception as e:
             print(f"Error during rice dispensing: {e}")
-    threading.Thread(target=rotate_and_dispense, daemon=True).start()"""
+    threading.Thread(target=rotate_and_dispense, daemon=True).start()
     
 def rice_dispensed1(new_window, cash_window, total_weight_to_dispense, total_amount, label_display, rice_display):
     dispensed_window1 = tk.Toplevel(root)
@@ -1149,20 +1150,41 @@ def close_and_restart():
         print(f"Error during restart: {e}")
 
 
-
 def disable_dispense_button():
     global open_button
     if open_button:
         open_button.config(state=tk.DISABLED)
 
-"""def check_payment(cash_window, label_display, main_window, new_window,rice_display):
+def check_payment(cash_window, label_display, main_window, new_window,rice_display):
     global total_amount, price
 
     if total_amount >= price:
         print("Payment successful!")
         cleanup1()  # Ensure GPIO resources are freed
         dispense_rice(label_display, price, new_window, cash_window, rice_display)
-"""
+
+import webbrowser
+
+def create_gcash_payment(price):
+    # Prepare the data for the payment request
+    data = {
+        "amount": price,
+        "success_url": "https://rvm-4805.onrender.com/success",  # Replace with your actual success URL
+        "failure_url": "https://rvm-4805.onrender.com/failure",  # Replace with your actual failure URL
+    }
+    
+    # Send a POST request to the Xendit payment endpoint
+    response = requests.post("https://rvm-4805.onrender.com/create-payment", json=data)
+    
+    if response.status_code == 200:
+        payment_url = response.json().get("payment_url")
+        if payment_url:
+            # Open the payment URL in the user's browser
+            webbrowser.open(payment_url)
+        else:
+            show_custom_messagebox("Payment Error", "Failed to create payment URL.")
+    else:
+        show_custom_messagebox("Payment Error", "Error creating payment: " + response.text)
 
 
 """PAYMONGO_API_KEY = 'sk_test_6zVNpSMrK2VwWCCjqGQyygzt' 
