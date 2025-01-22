@@ -1,21 +1,5 @@
-import gpiod
-import time
-import tkinter as tk
-from tkinter import messagebox, Button
-import qrcode
-import threading
-import base64
-import requests
-from PIL import Image, ImageTk, ImageDraw, ImageOps 
-import mysql.connector
-from io import BytesIO
-import re
-import subprocess
-from tkinter import ttk
-import sys
-from gif import AnimatedGIF
-from modules.hx711.JoyIT_hx711py.HX711_PY import HX711
-import weight11
+
+
 
 COIN_PIN = 17
 INHIBIT_PIN = 23
@@ -389,7 +373,7 @@ def validate_and_proceed(is_cash, new_window,main_window, label_display, rice_di
         show_custom_messagebox("Payment Method", "Please select a payment method")
         return
     if gcash_var.get():
-        weight11.home()
+        home()
         new_window.withdraw()
     if cash_var.get():
         proceed(is_cash,new_window,main_window,label_display,rice_display)
@@ -1163,6 +1147,117 @@ def check_payment(cash_window, label_display, main_window, new_window,rice_displ
         cleanup1()  # Ensure GPIO resources are freed
         dispense_rice(label_display, price, new_window, cash_window, rice_display)
 
+import os
+import requests
+from flask import Flask, request, jsonify, render_template, redirect, url_for
+from dotenv import load_dotenv
+import hmac
+import time
+import base64
+
+# Load environment variables
+load_dotenv()
+XENDIT_SECRET_KEY = os.getenv("XENDIT_SECRET_KEY")
+X_CALLBACK_TOKEN = os.getenv("X_CALLBACK_TOKEN")
+
+# Validate environment variables
+if not XENDIT_SECRET_KEY or not X_CALLBACK_TOKEN:
+    raise EnvironmentError("Missing XENDIT_SECRET_KEY or X_CALLBACK_TOKEN.")
+
+BASE_URL = "https://api.xendit.co"
+
+app = Flask(__name__)
+
+# Root route with a user-friendly form
+@app.route("/", methods=["GET", "POST"])
+def home():
+    if request.method == "POST":
+        # Process form submission
+        price = float(price_var.get())
+        success_url = url_for("success", _external=True)
+        failure_url = url_for("failure", _external=True)
+
+        # Generate a payment
+        reference_id = f"rvm_{int(time.time())}"
+        payment_url = create_gcash_payment(reference_id, float(price), success_url, failure_url)
+
+        import os
+        if os.name == "nt":  # Windows
+            os.system(f"start {payment_url}")
+
+        elif os.name == "posix":  # macOS/Linux
+            os.system(f"open {payment_url}")
+
+
+# Webhook endpoint for handling Xendit callbacks
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    x_callback_token = request.headers.get("X-CALLBACK-TOKEN")
+    if not hmac.compare_digest(x_callback_token, X_CALLBACK_TOKEN):
+        return jsonify({"error": "Invalid X-CALLBACK-TOKEN"}), 403
+
+    webhook_data = request.json
+    print("Webhook received:", webhook_data)
+
+    event = webhook_data.get("event")
+    if event == "ewallet.capture":
+        data = webhook_data.get("data")
+        print(f"Payment succeeded for Reference ID: {data.get('reference_id')}")
+    else:
+        print(f"Unhandled event: {event}")
+
+    return jsonify({"message": "Webhook processed successfully"}), 200
+
+# Success page route
+@app.route("/success", methods=["GET"])
+def success():
+    return "<h1>Payment Successful</h1><p>Thank you for your payment!</p>"
+
+# Failure page route
+@app.route("/failure", methods=["GET"])
+def failure():
+    return "<h1>Payment Failed</h1><p>We’re sorry, but your payment could not be processed.</p>"
+
+# Function to create a GCash payment request
+def create_gcash_payment(reference_id, price, success_url, failure_url):
+    url = f"{BASE_URL}/payment_requests"
+    headers = {
+        "Authorization": f"Basic {base64.b64encode(f'{XENDIT_SECRET_KEY}:'.encode()).decode()}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "reference_id": reference_id,
+        "amount": price,
+        "currency": "PHP",
+        "country": "PH",
+        "payment_method": {
+            "type": "EWALLET",
+            "ewallet": {
+                "channel_code": "GCASH",
+                "channel_properties": {
+                    "success_return_url": success_url,
+                    "failure_return_url": failure_url,
+                },
+            },
+            "reusability": "ONE_TIME_USE",
+        },
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    if response.status_code == 201:
+        data = response.json()
+        print("Payment created successfully!")
+        print(f"Redirect URL: {data['actions'][0]['url']}")
+        return data["actions"][0]["url"]
+    else:
+        print("Error creating payment:", response.json())
+        return None
+
+# Start the Flask server for Render
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
 
 
 """PAYMONGO_API_KEY = 'sk_test_6zVNpSMrK2VwWCCjqGQyygzt' 
