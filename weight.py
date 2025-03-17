@@ -15,14 +15,12 @@ from tkinter import ttk
 import sys
 from gif import AnimatedGIF
 from modules.hx711.JoyIT_hx711py.HX711_PY import HX711
-import weight11
 
 
 COIN_PIN = 17
 INHIBIT_PIN = 23
 BILL_PIN = 18
 
-# Initialize GPIO chip and lines
 chip = gpiod.Chip('gpiochip0')
 coin_line = chip.get_line(COIN_PIN)
 bill_line = chip.get_line(BILL_PIN)
@@ -63,9 +61,9 @@ def fetch_data_and_display():
             button2.config(text=variety2)
             button3.config(text=variety3)
 
-            label1.config(text=f"{klg1} Kg")
-            label2.config(text=f"{klg2} Kg")
-            label3.config(text=f"{klg3} Kg")
+            label1.config(text=f"{klg1} per kilo")
+            label2.config(text=f"{klg2} per kilo")
+            label3.config(text=f"{klg3} per kilo")
 
         else:
             messagebox.showinfo("No Data", "No rice names found in the database.")
@@ -211,7 +209,7 @@ def open_home_window(button_number, button_text, label_text,main_window):
 
     # Create a label for feedback
     global feedback_label
-    feedback_label = tk.Label(price_content_frame, text="", fg="red", bg="#ffffff")  # Red text for feedback
+    feedback_label = tk.Label(price_content_frame, font=("Arial",16,"bold"), text="", fg="red", bg="#ffffff")  # Red text for feedback
     feedback_label.place(relx=0, rely=1, anchor="sw")  # Adjust x and y for positioning     
     # Create the "Max" label
     # max_label = tk.Label(price_entry_frame, text="Max", font=("Arial", 18), bg="white", fg="black")
@@ -233,6 +231,13 @@ def open_home_window(button_number, button_text, label_text,main_window):
     # Load the custom images
     unchecked_image = PhotoImage(file="/home/heartryan/Downloads/oval.png")  # Your unchecked image file
     checked_image = PhotoImage(file="/home/heartryan/Downloads/check.png")  # Your checked image file
+    logo_path1 = "/home/heartryan/my_raspberry_pi_project/Rice_Vending_Machine.png"
+    logo_image1 = Image.open(logo_path1)
+    logo_image1 = logo_image1.resize((150, 150), Image.LANCZOS)
+    logo_tk1 = ImageTk.PhotoImage(logo_image1)
+    logo_label1 = tk.Label(new_window, image=logo_tk1, bg="#FFFFFF")    
+    logo_label1.image = logo_tk1
+    logo_label1.place(x=10, y=10)
 
     def gcash_checked():
         cash_var.set(False)
@@ -262,7 +267,7 @@ def open_home_window(button_number, button_text, label_text,main_window):
     # Define button properties
     button_width = 10
     button_height = 3
-    button_font = ("Arial", 23)
+    button_font = ("Arial", 23, "bold")
 
     # List of buttons to create
     buttons = [
@@ -274,8 +279,13 @@ def open_home_window(button_number, button_text, label_text,main_window):
 
     # Create and place the buttons on the grid
     for (text, row, col) in buttons:
-        button = tk.Button(button_frame, text=text, width=button_width, height=button_height, font=button_font, 
-                           bg="#508D4E", fg="black", command=lambda t=text: on_button_click(t))
+        if text in ['C', 'X']:
+            button = tk.Button(button_frame, text=text, width=button_width, height=button_height, font=button_font, 
+                            bg="#508D4E", fg="white", command=lambda t=text: on_button_click(t))  # Red text for C and X
+        else:
+            button = tk.Button(button_frame, text=text, width=button_width, height=button_height, font=button_font, 
+                            bg="#508D4E", fg="black", command=lambda t=text: on_button_click(t))
+        
         button.grid(row=row, column=col, padx=10, pady=10)
 
     # Create a frame for the action buttons (Cancel and Pay)
@@ -283,16 +293,17 @@ def open_home_window(button_number, button_text, label_text,main_window):
     button_frame_bottom.pack(side=tk.BOTTOM, fill=tk.X, pady=(0,60), padx=20)
 
     # Add buttons to proceed and cancel
-    Cancel_button = tk.Button(button_frame_bottom, text="Cancel", width=36, height=3, bg="lightgray", fg="black", font=("Arial", 35),bd=1, relief="solid", command=lambda: [main_window.deiconify(), new_window.destroy()])
+    Cancel_button = tk.Button(button_frame_bottom, text="Cancel", width=36, height=3, bg="lightgray", fg="black", font=("Arial", 35, "bold"),bd=1, relief="solid", command=lambda: [main_window.deiconify(), new_window.destroy()])
     Cancel_button.pack(side=tk.LEFT, padx=(10,2))
     Cancel_button.bind("<Button-1>", lambda e:  [main_window.deiconify(), new_window.destroy()])
 
-    proceed_button = tk.Button(button_frame_bottom, text="Pay", width=40, height=3, bg="#508D4E", fg="black", font=("Arial", 35), command=lambda: [validate_and_proceed(cash_var.get(), new_window,main_window, rice_display.cget("text"),label_display.cget("text"))])
+    proceed_button = tk.Button(button_frame_bottom, text="Pay", width=40, height=3, bg="#508D4E", fg="white", font=("Arial", 35, "bold"), command=lambda: [validate_and_proceed(cash_var.get(), new_window,main_window, rice_display.cget("text"),label_display.cget("text"))])
     proceed_button.pack(side=tk.RIGHT, padx=(2,10))
 
     button.bind("<Enter>", on_enter)
     button.bind("<Leave>", on_leave)
     return label_display
+
 
 def on_enter(e):
     e.widget['background'] = 'white'  # Change to desired hover color
@@ -565,6 +576,22 @@ def proceed(is_cash, new_window, main_window, rice_display, label_display):
         center_frame1.pack(expand=True, fill=tk.BOTH, padx=20, pady=0)
         center_frame = tk.Frame(center_frame1, bg="white", bd=1, relief="solid")  # Inner white frame with border
         center_frame.pack(expand=True, fill=tk.BOTH, padx=400, pady=(80, 150))
+        logo_path1 = "/home/heartryan/my_raspberry_pi_project/Rice_Vending_Machine.png"
+        logo_image1 = Image.open(logo_path1)
+        logo_image1 = logo_image1.resize((150, 150), Image.LANCZOS)
+        logo_tk1 = ImageTk.PhotoImage(logo_image1)
+
+        # Create the logo label
+        logo_label1 = tk.Label(cash_window, image=logo_tk1, bg="#508D4E")
+        logo_label1.image = logo_tk1  # Prevent garbage collection
+
+        # Place at top-right corner dynamically
+        cash_window.update_idletasks()  # Force window to calculate size
+        window_width = cash_window.winfo_width()
+
+        # Place the logo at the top-right, adjusting for its own width
+        logo_label1.place(x=window_width - 150 - 10, y=10)
+
 
         # Header section with bold text and underline
         header_label = tk.Label(
@@ -771,13 +798,13 @@ hx = HX711(dout=16, pd_sck=5)
 hx.set_offset(8504030.4)  # Calibrated offset
 hx.set_scale(89.6353448)  # Calibrated scale
 
-FIXED_TARE_WEIGHT = 100  # Fixed tare weight in grams
+FIXED_TARE_WEIGHT = 0 # Fixed tare weight in grams
 WEIGHT_TOLERANCE = 100
 
 import requests
 import time
 
-esp8266_ip = "http://192.168.253.148"  # Replace with the ESP8266 IP
+esp8266_ip = "http://192.168.130.148"  # Replace with the ESP8266 IP
 
 def rotate_servo(angle, servo_id):
     """Send a command to the ESP8266 to rotate a servo."""
@@ -836,6 +863,51 @@ def insert_transaction(transaction_id, date_time, rice_type, price_per_unit, wei
             cursor.close()
             connection.close()
 
+from mysql.connector import Error
+def update_rice_stock(variety, weight_dispensed):
+    try:
+        connection = mysql.connector.connect(
+            host="localhost",        # Replace with your MySQL host
+            user="root",               # Replace with your MySQL username
+            password="password",       # Replace with your MySQL password
+            database="RVM"
+        )
+
+        cursor = connection.cursor()
+
+        # Convert grams to kilograms (1000 grams = 1 kg)
+        weight_dispensed_kg = weight_dispensed / 1000.0
+
+        # Fetch the current stock
+        cursor.execute("SELECT current_stock FROM rice WHERE variety = %s", (variety,))
+        result = cursor.fetchone()
+
+        if result is None:
+            print(f"Variety '{variety}' not found in database.")
+            return
+
+        current_stock = float(result[0])    
+        new_stock = current_stock - weight_dispensed_kg
+
+        if new_stock < 0:
+            print("Error: Not enough stock available.")
+            return
+
+        # Update the stock in the database
+        cursor.execute("UPDATE rice SET current_stock = %s WHERE variety = %s", (new_stock, variety))
+        connection.commit()
+        print(f"Updating stock for variety: '{variety}'")  # This will show what is actually passed
+
+        print(f"Stock updated for {variety}: {current_stock} kg -> {new_stock:.2f} kg")
+
+    except Error as e:
+        print(f"Error connecting to database: {e}")
+
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
 
 from tkinter import ttk
 def dispense_rice(label_display, price, new_window, cash_window, rice_display):
@@ -843,7 +915,7 @@ def dispense_rice(label_display, price, new_window, cash_window, rice_display):
 
     def rotate_and_dispense():
         try:
-            match = re.search(r'(\d+\.?\d*)\s*(?:klg|kg|per\s*kg)', label_display, re.IGNORECASE)
+            match = re.search(r'(\d+\.?\d*)\s*(?:klg|per kilo|per\s*kg)', label_display, re.IGNORECASE)
             if not match:
                 raise ValueError("Invalid label display format")
 
@@ -993,6 +1065,7 @@ def rice_dispensed1(new_window, cash_window, total_weight_to_dispense, total_amo
         payment_method="Cash",  # Or "GCash", based on your implementation
         status="success"
     )
+    update_rice_stock(rice_display, label_rice_calculate)
     monitor_bag_and_release(total_weight_to_dispense,new_window, cash_window)
 
 import lgpio as GPIO
@@ -1051,66 +1124,57 @@ def monitor_bag_and_release(total_weight_to_dispense, new_window, cash_window):
         if average_distance < 30: 
             print("Bag detected!")
             bag_detected = True
-            open_servo_and_release_rice(total_weight_to_dispense)
+            open_servo_and_release_rice()
         else:
             print("No bag detected. Waiting...")
             time.sleep(0.5)  # Check every 500ms
 
-def open_servo_and_release_rice(total_weight_to_dispense):
+import time
+from collections import deque
+
+def open_servo_and_release_rice():
     """
     Use the ultrasonic sensor to detect a bag/container and open Servo 4 for rice release.
-    Close the servo temporarily when no bag is detected, and wait for the user to place the bag back to continue dispensing.
+    Close the servo when no bag is detected.
+    If the bag is removed for more than 20 seconds, close the servo and restart the system.
     """
-    print("Monitoring for bag/container and dispensing rice...")
-    distance_readings = deque(maxlen=5)  # Store the last 5 distance readings
+    print("Monitoring for bag/container...")
+    distance_readings = deque(maxlen=5)  # Track last 5 distance readings to smooth out noise
     is_servo_open = False
-    initial_weight = hx.get_grams(10)  # Take 10 readings for stability
-    print(f"Initial weight (tare): {initial_weight:.2f} grams")
-    total_weight_to_dispense1 = total_weight_to_dispense 
+    bag_removed_start_time = None  # Track when bag was removed
 
     while True:
         distance = get_distance()
         distance_readings.append(distance)
         average_distance = sum(distance_readings) / len(distance_readings)
-        print(f"Average Distance: {average_distance:.2f} cm")
 
-        if average_distance < 40 and not is_servo_open:
-            print("Bag detected! Opening Servo 4.")
-            rotate_servo(40, 4)  # Replace with servo control
-            is_servo_open = True
-        # Monitor the current weight while the servo is open
-        if is_servo_open:
-            current_weight = hx.get_grams(10)  # Average over 10 readings
-            weight_reduction = initial_weight - current_weight  # Calculate reduction
-            MAX_VALID_WEIGHT = 7100.0
+        if average_distance < 30:  # Bag detected (close enough)
+            if not is_servo_open:
+                print("Bag detected! Opening Servo 4.")
+                rotate_servo(40, 4)
+                is_servo_open = True
+            bag_removed_start_time = None  # Reset timer when bag is detected again
 
-            # Check if the reading is within a valid range
-            if current_weight > MAX_VALID_WEIGHT:
-                print(f"Erratic reading detected: {current_weight:.2f} grams. Ignoring...")
-                time.sleep(0.1)  # Delay before rechecking
-                continue  # Skip this invalid reading
-
-            # Handle valid weight reduction
-            print(f"Weight reduction: {weight_reduction:.2f} grams")
-
-            # Check if all rice is dispensed
-            if weight_reduction >= total_weight_to_dispense1:
-                print("Target weight dispensed. Closing the servo.")
+        elif average_distance >= 30:  # Bag removed (too far)
+            if is_servo_open:
+                print("Bag removed! Closing Servo 4 temporarily.")
                 rotate_servo(10, 4)
                 is_servo_open = False
-                break
 
-            if weight_reduction < 0:
-                print("Invalid weight reading. Retrying...")
-                time.sleep(0.1)
-                continue
+            if bag_removed_start_time is None:
+                bag_removed_start_time = time.time()  # Start 20-second timer
+
+            # If container has been missing for 20 seconds, restart system
+            elif time.time() - bag_removed_start_time >= 15.0:
+                print("Bag removed for more than 20 seconds! Restarting system.")
+                rotate_servo(10, 4)  # Ensure servo is closed
+                close_and_restart()  # Restart the system
+                return  # Exit function to allow restart process to work
 
         time.sleep(0.1)
 
-    # All rice dispensed
-    print("Dispensing complete. Restarting system.")
-    close_and_restart()
-
+import os 
+    
 def cleanup_hx711(hx):
     """Cleanup HX711 GPIO resources."""
     try:
@@ -1144,11 +1208,10 @@ def close_and_restart():
 
         time.sleep(1)  # Allow resources to release
         print("Restarting the system...")
-        subprocess.Popen([sys.executable, sys.argv[0]])  # Restart script
-        sys.exit()
+        python = sys.executable
+        os.execv(python, [python] + sys.argv)
     except Exception as e:
         print(f"Error during restart: {e}")
-
 
 def disable_dispense_button():
     global open_button
@@ -1164,7 +1227,6 @@ def check_payment(cash_window, label_display, main_window, new_window,rice_displ
         dispense_rice(label_display, price, new_window, cash_window, rice_display)
 
 import webbrowser
-
 def create_gcash_payment(price):
     # Prepare the data for the payment request
     data = {
@@ -1178,11 +1240,12 @@ def create_gcash_payment(price):
     
     if response.status_code == 200:
         payment_url = response.json().get("payment_url")
-        if payment_url:
-            # Open the payment URL in the user's browser
-            webbrowser.open(payment_url)
-        else:
-            show_custom_messagebox("Payment Error", "Failed to create payment URL.")
+        import os
+        if os.name == "nt":  # Windows
+            os.system(f"start {payment_url}")
+
+        elif os.name == "posix":  # macOS/Linux
+            os.system(f"open {payment_url}")
     else:
         show_custom_messagebox("Payment Error", "Error creating payment: " + response.text)
 
@@ -1366,94 +1429,170 @@ def second_window(event=None):
     main_window.wm_attributes("-type", "override")
 
     button_width = 20
-    button_height = 5
+    button_height = 3
     button_font = ("Arial", 38)
 
     # Create a frame for buttons
     button_frame = tk.Frame(main_window, bg="#ffffff")
     button_frame.pack(fill=tk.BOTH, expand=True)
 
-    # Configure rows and columns to expand
+    choose_rice_label = tk.Label(main_window, text="Choose Rice", font=("Arial", 60, "bold"), fg="black", bg="#ffffff")
+    choose_rice_label.place(relx=0.5, rely=0.1, anchor="center")
+
     for i in range(3):
         button_frame.columnconfigure(i, weight=1)
         button_frame.rowconfigure(0, weight=1)
 
-    # Create button frames for each column
-    button_frame1 = tk.Frame(button_frame, bg="#ffffff", width=550, height=1000, relief="solid", borderwidth=0.5)
-    button_frame1.grid(row=0, column=0, padx=10, pady=20, sticky="nsew")
+    button_frame1 = tk.Frame(button_frame, bg="#ffffff", width=550, height=900, relief="solid", borderwidth=0.5)
+    button_frame1.grid(row=0, column=0, padx=10, pady=(170,40), sticky="nsew")
 
-    button_frame2 = tk.Frame(button_frame, bg="#ffffff", width=550, height=1000, relief="solid", borderwidth=0.5)
-    button_frame2.grid(row=0, column=1, padx=10, pady=20, sticky="nsew")
+    button_frame2 = tk.Frame(button_frame, bg="#ffffff", width=550, height=900, relief="solid", borderwidth=0.5)
+    button_frame2.grid(row=0, column=1, padx=10, pady=(170,40), sticky="nsew")
 
-    button_frame3 = tk.Frame(button_frame, bg="#ffffff", width=550, height=1000, relief="solid", borderwidth=0.5)
-    button_frame3.grid(row=0, column=2, padx=10, pady=20, sticky="nsew")
+    button_frame3 = tk.Frame(button_frame, bg="#ffffff", width=550, height=900, relief="solid", borderwidth=0.5)
+    button_frame3.grid(row=0, column=2, padx=10, pady=(170,40), sticky="nsew")
 
-    button_frame1.bind("<Button-1>", lambda e: open_home_window(1, button1.cget("text"), label1.cget("text"), main_window))
-    button_frame2.bind("<Button-1>", lambda e: open_home_window(2, button2.cget("text"), label2.cget("text"), main_window))
-    button_frame3.bind("<Button-1>", lambda e: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
 
-    # Create image labels and position them at the top of each button frame
-    img1 = tk.Label(button_frame1, bg="#ffffff")  # Placeholder for image
-    img1.place(relx=0.5, rely=0.03, anchor="n")  # Position at the top
+    img1 = tk.Label(button_frame1, bg="#ffffff")
+    img1.place(relx=0.5, rely=0.05, anchor="n")
 
-    img2 = tk.Label(button_frame2, bg="#ffffff")  # Placeholder for image
-    img2.place(relx=0.5, rely=0.03, anchor="n")  # Position at the top
+    img2 = tk.Label(button_frame2, bg="#ffffff")
+    img2.place(relx=0.5, rely=0.05, anchor="n")
 
-    img3 = tk.Label(button_frame3, bg="#ffffff")  # Placeholder for image
-    img3.place(relx=0.5, rely=0.03, anchor="n")  # Position at the top
+    img3 = tk.Label(button_frame3, bg="#ffffff")
+    img3.place(relx=0.5, rely=0.05, anchor="n")
 
-    # Bind click events to each label
-    img1.bind("<Button-1>", lambda e: open_home_window(1, button1.cget("text"), label1.cget("text"), main_window))
-    img2.bind("<Button-1>", lambda e: open_home_window(2, button2.cget("text"), label2.cget("text"), main_window))
-    img3.bind("<Button-1>", lambda e: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
+    global label1, label2, label3
+    label1 = tk.Label(button_frame1, text="", font=("Arial", 30, "bold"), fg="black", bg="#ffffff")
+    label1.place(relx=0.5, rely=0.58, anchor="center")
 
-    # Create text labels for each image
-    global label1
-    label1 = tk.Label(button_frame1, text="", font=("Arial", 24, "bold"), fg="black", bg="#ffffff")
-    label1.place(relx=0.5, rely=0.6, anchor="center")  # Centered in button_frame1
+    label2 = tk.Label(button_frame2, text="", font=("Arial", 30, "bold"), fg="black", bg="#ffffff")
+    label2.place(relx=0.5, rely=0.58, anchor="center")
 
-    global label2
-    label2 = tk.Label(button_frame2, text="40 per kg", font=("Arial", 24, "bold"), fg="black", bg="#ffffff")
-    label2.place(relx=0.5, rely=0.6, anchor="center")  # Centered in button_frame2
+    label3 = tk.Label(button_frame3, text="", font=("Arial", 30, "bold"), fg="black", bg="#ffffff")
+    label3.place(relx=0.5, rely=0.58, anchor="center")
 
-    global label3
-    label3 = tk.Label(button_frame3, text="40 per kg", font=("Arial", 24, "bold"), fg="black", bg="#ffffff")
-    label3.place(relx=0.5, rely=0.6, anchor="center")  # Centered in button_frame3
+    global stock_label1, stock_label2, stock_label3
+    stock_label1 = tk.Label(button_frame1, text="", font=("Arial", 20), fg="black", bg="#ffffff")
+    stock_label1.place(relx=0.5, rely=0.64, anchor="center")
 
-    # Create buttons inside the frames, positioned at the bottom of each frame
-    global button1
+    stock_label2 = tk.Label(button_frame2, text="", font=("Arial", 20), fg="black", bg="#ffffff")
+    stock_label2.place(relx=0.5, rely=0.64, anchor="center")
+
+    stock_label3 = tk.Label(button_frame3, text="", font=("Arial", 20), fg="black", bg="#ffffff")
+    stock_label3.place(relx=0.5, rely=0.64, anchor="center")
+
+    global button1, button2, button3
     button1 = tk.Button(button_frame1, text="Select Variety 1", width=button_width, height=button_height,
-                        bg="#508D4E", fg="white", font=button_font, command=lambda: open_home_window(1, button1.cget("text"), label1.cget("text"), main_window))
-    button1.place(relx=0.5, rely=0.82, anchor="center")  # Position at the bottom of button_frame1
+                        bg="#508D4E", fg="white", font=button_font,
+                        command=lambda: open_home_window(1, button1.cget("text"), label1.cget("text"), main_window))
+    button1.place(relx=0.5, rely=0.85, anchor="center")
 
-    global button2
     button2 = tk.Button(button_frame2, text="Select Variety 2", width=button_width, height=button_height,
-                        bg="#508D4E", fg="white", font=button_font, command=lambda: open_home_window(2, button2.cget("text"), label2.cget("text"), main_window))
-    button2.place(relx=0.5, rely=0.82, anchor="center")  # Position at the bottom of button_frame2
+                        bg="#508D4E", fg="white", font=button_font,
+                        command=lambda: open_home_window(2, button2.cget("text"), label2.cget("text"), main_window))
+    button2.place(relx=0.5, rely=0.85, anchor="center")
 
-    global button3
     button3 = tk.Button(button_frame3, text="Select Variety 3", width=button_width, height=button_height,
-                        bg="#508D4E", fg="white", font=button_font, command=lambda: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
-    button3.place(relx=0.5, rely=0.82, anchor="center")  # Position at the bottom of button_frame3
+                        bg="#508D4E", fg="white", font=button_font,
+                        command=lambda: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
+    button3.place(relx=0.5, rely=0.85, anchor="center")
 
-    button1.bind("<Button-1>", lambda e: open_home_window(1, button1.cget("text"), label1.cget("text"), main_window))
-    button2.bind("<Button-1>", lambda e: open_home_window(2, button2.cget("text"), label2.cget("text"), main_window))
-    button3.bind("<Button-1>", lambda e: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
 
     fetch_data_and_display()
     display_images([img1, img2, img3], [1, 2, 3])
+    fetch_and_display_stock()
 
-# Create the main window
+def fetch_and_display_stock():
+    try:
+        connection = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="password",
+            database="RVM"
+        )
+        cursor = connection.cursor()
+        cursor.execute("SELECT variety, current_stock FROM rice")
+
+        rice_data = cursor.fetchall()
+
+        if rice_data:
+            stock1 = rice_data[0][1] if len(rice_data) > 0 else None
+            stock2 = rice_data[1][1] if len(rice_data) > 1 else None
+            stock3 = rice_data[2][1] if len(rice_data) > 2 else None
+
+            # Update stock labels based on the actual stock values
+            if stock1 is not None:
+                if stock1 < 1:
+                    
+                    stock_label1.config(text="Out of Stock", fg="red")
+                    disabled_button()
+                else:
+                    stock_label1.config(text=f"Stock: {stock1:.2f} klg", fg="black")
+                    button1.config(state=tk.NORMAL)
+
+            if stock2 is not None:
+                if stock2 < 1:
+                    stock_label2.config(text="Out of Stock", fg="red")
+                    disabled1_button()
+                else:
+                    stock_label2.config(text=f"Stock: {stock2:.2f} klg", fg="black")
+                    button2.config(state=tk.NORMAL)
+
+            if stock3 is not None:
+                if stock3 < 1:
+                    stock_label3.config(text="Out of Stock", fg="red")
+                    disabled2_button()
+                else:
+                    stock_label3.config(text=f"Stock: {stock3:.2f} klg", fg="black")
+                    button3.config(state=tk.NORMAL)
+
+    except mysql.connector.Error as error:
+        messagebox.showerror("Database Error", f"Error fetching stock: {error}")
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
+def disabled_button():
+    global button1
+    if button1:
+        button1.config(state=tk.DISABLED)  # Disable the Back button
+        button1.config(bg="gray", fg="black")
+    
+def disabled1_button():
+    global button2
+    if button2:
+        button2.config(state=tk.DISABLED)  # Disable the Back button
+        button2.config(bg="gray", fg="black")
+
+def disabled2_button():
+    global button3
+    if button3:
+        button3.config(state=tk.DISABLED)  # Disable the Back button
+        button3.config(bg="gray", fg="black")
+
+# Create main window
 root = tk.Tk()
 root.configure(background="#F5F5F5")
 set_fullscreen(root)
 root.wm_attributes("-type", "override")
-root.wm_title("")  # This line is already in your code, but it's not working because you're setting the window to full screen
-gif = AnimatedGIF(root, "/home/heartryan/my_raspberry_pi_project/1022(7).gif", 
-                           width=820, height=620,interval=100)
-gif.bind_click(second_window)
-# Create some windows
+root.wm_title("")
 
+
+# Add your Animated GIF (assume AnimatedGIF class is already defined somewhere)
+gif = AnimatedGIF(root, "/home/heartryan/my_raspberry_pi_project/1022(7).gif", 
+                        width=820, height=620, interval=100)
+gif.bind_click(second_window)
+# Load and display logo at top-left
+logo_path = "/home/heartryan/my_raspberry_pi_project/Rice_Vending_Machine.png"
+logo_image = Image.open(logo_path)
+logo_image = logo_image.resize((150, 150), Image.LANCZOS)
+logo_tk = ImageTk.PhotoImage(logo_image)
+logo_label = tk.Label(root, image=logo_tk)    
+logo_label.image = logo_tk
+logo_label.place(x=10, y=10)
+logo_label.bind("<Button-1>", second_window)
 root.mainloop()
 
 

@@ -10,8 +10,6 @@ from PIL import Image, ImageTk, ImageDraw, ImageOps
 import mysql.connector
 from io import BytesIO
 import re
-import gpiozero
-from JoyIT_hx711py import HX711
 import subprocess
 from tkinter import ttk
 import sys
@@ -23,7 +21,6 @@ COIN_PIN = 17
 INHIBIT_PIN = 23
 BILL_PIN = 18
 
-# Initialize GPIO chip and lines
 chip = gpiod.Chip('gpiochip0')
 coin_line = chip.get_line(COIN_PIN)
 bill_line = chip.get_line(BILL_PIN)
@@ -31,41 +28,6 @@ bill_line = chip.get_line(BILL_PIN)
 coin_line.request(consumer='coin_slot', type=gpiod.LINE_REQ_DIR_IN, default_val=0)
 bill_line.request(consumer='bill_acceptor', type=gpiod.LINE_REQ_DIR_IN, default_val=0)
 
-
-PAYMONGO_API_KEY = 'sk_test_6zVNpSMrK2VwWCCjqGQyygzt' 
-PAYMONGO_API_URL = 'https://api.paymongo.com/v1/links'
-
-def create_gcash_payment_source(amount, description='GCash Payment'):
-    encoded_api_key = base64.b64encode(f'{PAYMONGO_API_KEY}:'.encode()).decode()
-
-    headers = {
-        'Authorization': f'Basic {encoded_api_key}',
-        'Content-Type': 'application/json',
-    }
-
-    data = {
-        'data': {
-            'attributes': {
-                'amount': int(amount * 100),  # Convert to centavos
-                'currency': 'PHP',
-                'description': description,
-                'redirect': {
-                    'success': 'http://yourdomain.com/success',
-                    'failed': 'http://yourdomain.com/failed',
-                },
-            }
-        }
-    }
-
-    response = requests.post(PAYMONGO_API_URL, headers=headers, json=data)
-    response_data = response.json()
-
-    if response.status_code == 201:
-        payment_url = response_data['data']['attributes']['checkout_url']
-        return payment_url
-    else:
-        print(f"Error creating GCash payment: {response_data}")
-        return None
 
 def fetch_data_and_display():
     try:
@@ -126,42 +88,49 @@ def on_button_click(value):
     if price_var.get() == "0":
         price_var.set("")
         current_text = price_var.get()
-        price_var.set(current_text + value)  # Add the clicked number to the textbox
-    else:
-        current_text = price_var.get()
-        
-        if value == 'C':
-            price_var.set("")  # Clear the textbox
-            feedback_label.config(text="")  # Clear feedback label
-            feedback_label.place_forget()  # Hide feedback label
-        elif value == 'X':
-            price_var.set(current_text[:-1])  # Remove the last character
-            feedback_label.config(text="")  # Clear feedback label
-            feedback_label.place_forget()  # Hide feedback label
-        elif value == "Max":
-            # When "Max" is clicked, set the price to the maximum value
-            if max_price > 0:
-                price_var.set(f"{int(max_price)}")  # Set to max price without .00
-                feedback_label.config(text="Max price set.")  # Feedback for max price set
-                feedback_label.place(x=10, y=380)  # Adjust position of feedback label
-            else:
-                feedback_label.config(text="Invalid max price.")  # Feedback for invalid max price
-                feedback_label.place(x=10, y=380)  # Adjust position of feedback label
-        else:
-            new_price = current_text + value  # Form the new price string
-            
-            # Validate against maximum price
-            if float(new_price) > max_price:
-                # Set to max price without .00
-                price_var.set(f"{int(max_price)}")  # Convert max price to int to remove .00
-                feedback_label.config(text="Price exceeds maximum limit. Only 5kg allowed.")  # Update feedback label
-                feedback_label.place(x=10, y=460)  # Show feedback label at the desired position
-            else:
-                price_var.set(new_price)  # Update to the new price
-                feedback_label.config(text="")  # Clear feedback if within limits
-                feedback_label.place_forget()  # Hide feedback label if no message
 
-        # Update the price variable
+    if value == 'C':
+        # Clear the textbox
+        price_var.set("0")  
+        feedback_label.config(text="")  # Clear feedback label
+        feedback_label.place_forget()  # Hide feedback label
+    elif value == 'X':
+        # Remove the last character from the textbox
+        current_text = price_var.get()
+        if len(current_text) > 1:
+            # Remove the last character if more than one digit
+            price_var.set(current_text[:-1])
+        else:
+            # If only one digit or empty, set to "0"
+            price_var.set("0")
+        feedback_label.config(text="")  # Clear feedback label
+        feedback_label.place_forget()  # Hide feedback label
+    elif value == "Max":
+        # When "Max" is clicked, set the price to the maximum value
+        if max_price > 0:
+            price_var.set(f"{int(max_price)}")  # Set to max price without .00
+            feedback_label.config(text="Max price set.")  # Feedback for max price set
+            feedback_label.place(x=10, y=380)  # Adjust position of feedback label
+        else:
+            feedback_label.config(text="Invalid max price.")  # Feedback for invalid max price
+            feedback_label.place(x=10, y=380)  # Adjust position of feedback label
+    else:
+        # Handle numerical button inputs
+        current_text = price_var.get()
+        new_price = current_text + value  # Form the new price string
+
+        # Validate against maximum price
+        if float(new_price) > max_price:
+            # Set to max price without .00
+            price_var.set(f"{int(max_price)}")  # Convert max price to int to remove .00
+            feedback_label.config(text="Price exceeds maximum limit. Only 5kg allowed.")  # Update feedback label
+            feedback_label.place(x=10, y=460)  # Show feedback label at the desired position
+        else:
+            price_var.set(new_price)  # Update to the new price
+            feedback_label.config(text="")  # Clear feedback if within limits
+            feedback_label.place_forget()  # Hide feedback label if no message
+
+        # Update the price variable globally
         global price
         try:
             price = float(price_var.get())  # Convert to float for price
@@ -174,7 +143,7 @@ def on_button_click(value):
 def open_home_window(button_number, button_text, label_text,main_window):
     main_window.withdraw()
     new_window = tk.Toplevel(root)
-    new_window.configure(bg="#363062")
+    new_window.configure(bg="#ffffff")
     set_fullscreen(new_window)
     new_window.wm_attributes("-type", "override")
 
@@ -202,23 +171,23 @@ def open_home_window(button_number, button_text, label_text,main_window):
             price_var.set("0")  # Default to 0 in case of an error
 
     # Create a frame to hold the main content
-    main_frame = tk.Frame(new_window, bg="#363062")
+    main_frame = tk.Frame(new_window, bg="#ffffff")
     main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
     # Create a frame for the price textbox
-    price_frame = tk.Frame(main_frame, bg="#363062")
+    price_frame = tk.Frame(main_frame, bg="#ffffff")
     price_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=(20, 0))
 
     # Create a frame inside price_frame to hold the label and textbox
-    price_content_frame = tk.Frame(price_frame, bg="#363062")
+    price_content_frame = tk.Frame(price_frame, bg="#ffffff")
     price_content_frame.pack(side=tk.TOP, fill=tk.Y, anchor='w')  # Anchor to the left
 
     global rice_display
-    rice_display = tk.Label(price_content_frame, text=button_text, font=("Arial", 98), bg="#363062", fg="white")
+    rice_display = tk.Label(price_content_frame, text=button_text, font=("Arial", 98), bg="#ffffff", fg="black")
     rice_display.pack(pady=(0), padx=(20))
 
     global label_display
-    label_display = tk.Label(price_content_frame, text=label_text, font=("Arial", 35), bg="#363062", fg="white")
+    label_display = tk.Label(price_content_frame, text=label_text, font=("Arial", 35), bg="#ffffff", fg="black")
     label_display.pack(pady=(0, 70), padx=(20))
 
     # Define the font for the header label
@@ -226,11 +195,11 @@ def open_home_window(button_number, button_text, label_text,main_window):
 
     # Create a label for the price
     vcmd = (price_content_frame.register(validate_input), '%S')
-    price_label = tk.Label(price_content_frame, text="Price", font=header_font, fg="white", bg="#363062")
+    price_label = tk.Label(price_content_frame, text="Price", font=header_font, fg="black", bg="#ffffff")
     price_label.pack( padx=15,pady=0, anchor="w")
 
     # Frame to hold the price entry and "Max" label
-    price_entry_frame = tk.Frame(price_content_frame, bg="#363062")
+    price_entry_frame = tk.Frame(price_content_frame, bg="#ffffff")
     price_entry_frame.pack(side=tk.TOP, pady=(20, 0), fill=tk.X)
 
     # Create the price textbox
@@ -240,7 +209,7 @@ def open_home_window(button_number, button_text, label_text,main_window):
 
     # Create a label for feedback
     global feedback_label
-    feedback_label = tk.Label(price_content_frame, text="", fg="red", bg="#363062")  # Red text for feedback
+    feedback_label = tk.Label(price_content_frame, text="", fg="red", bg="#ffffff")  # Red text for feedback
     feedback_label.place(relx=0, rely=1, anchor="sw")  # Adjust x and y for positioning     
     # Create the "Max" label
     # max_label = tk.Label(price_entry_frame, text="Max", font=("Arial", 18), bg="white", fg="black")
@@ -250,7 +219,7 @@ def open_home_window(button_number, button_text, label_text,main_window):
     #max_label.bind("<Button-1>", set_max_price)
 
     # Create a label for the payment method
-    payment_label = tk.Label(price_content_frame, text="Payment Method", bd=10, font=header_font, fg="white", bg="#363062")
+    payment_label = tk.Label(price_content_frame, text="Payment Method", bd=10, font=header_font, fg="black", bg="#ffffff")
     payment_label.pack( padx=10, pady=(60, 0), anchor="w")
 
     from tkinter import PhotoImage
@@ -285,7 +254,7 @@ def open_home_window(button_number, button_text, label_text,main_window):
     cash_checkbox.pack(side=tk.LEFT, fill=tk.Y, padx=(1, 0), pady=0)
 
     # Create a frame to hold the buttons
-    button_frame = tk.Frame(main_frame,bg="#363062")
+    button_frame = tk.Frame(main_frame,bg="#ffffff")
     button_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=(155, 0))
 
     # Define button properties
@@ -304,18 +273,19 @@ def open_home_window(button_number, button_text, label_text,main_window):
     # Create and place the buttons on the grid
     for (text, row, col) in buttons:
         button = tk.Button(button_frame, text=text, width=button_width, height=button_height, font=button_font, 
-                           bg="#508D4E", fg="white", command=lambda t=text: on_button_click(t))
+                           bg="#508D4E", fg="black", command=lambda t=text: on_button_click(t))
         button.grid(row=row, column=col, padx=10, pady=10)
 
     # Create a frame for the action buttons (Cancel and Pay)
-    button_frame_bottom = tk.Frame(new_window,bg="#363062")
+    button_frame_bottom = tk.Frame(new_window,bg="#ffffff")
     button_frame_bottom.pack(side=tk.BOTTOM, fill=tk.X, pady=(0,60), padx=20)
 
     # Add buttons to proceed and cancel
-    Cancel_button = tk.Button(button_frame_bottom, text="Cancel", width=38, height=3, bg="lightgray", fg="black", font=("Arial", 35),bd=1, relief="solid", command=lambda: [main_window.deiconify(), new_window.destroy()])
+    Cancel_button = tk.Button(button_frame_bottom, text="Cancel", width=36, height=3, bg="lightgray", fg="black", font=("Arial", 35),bd=1, relief="solid", command=lambda: [main_window.deiconify(), new_window.destroy()])
     Cancel_button.pack(side=tk.LEFT, padx=(10,2))
+    Cancel_button.bind("<Button-1>", lambda e:  [main_window.deiconify(), new_window.destroy()])
 
-    proceed_button = tk.Button(button_frame_bottom, text="Pay", width=38, height=3, bg="#508D4E", fg="white", font=("Arial", 35), command=lambda: [validate_and_proceed(cash_var.get(), new_window,main_window, rice_display.cget("text"),label_display.cget("text"))])
+    proceed_button = tk.Button(button_frame_bottom, text="Pay", width=40, height=3, bg="#508D4E", fg="black", font=("Arial", 35), command=lambda: [validate_and_proceed(cash_var.get(), new_window,main_window, rice_display.cget("text"),label_display.cget("text"))])
     proceed_button.pack(side=tk.RIGHT, padx=(2,10))
 
     button.bind("<Enter>", on_enter)
@@ -418,8 +388,7 @@ def validate_and_proceed(is_cash, new_window,main_window, label_display, rice_di
         show_custom_messagebox("Payment Method", "Please select a payment method")
         return
     if gcash_var.get():
-        generate_gcash_qr(price, new_window)
-
+        create_gcash_payment(price)
         new_window.withdraw()
     if cash_var.get():
         proceed(is_cash,new_window,main_window,label_display,rice_display)
@@ -564,9 +533,143 @@ def disable_back_button():
         Back_button.config(state=tk.DISABLED)  # Disable the Back button
 def blink_label1(label1):
     current_color = label1.cget("fg")
-    next_color = "red" if current_color == "green" else "green"
+    next_color = "#000000" if current_color == "green" else "green"
     label1.config(fg=next_color)
-    label1.after(500, blink_label, label1)
+    label1.after(500, blink_label1, label1)
+def proceed(is_cash, new_window, main_window, rice_display, label_display):
+    global pulse_count, bill_pulse_count, progress_bar, percentage_label  # Declare progress bar and percentage label as global
+
+    if is_cash:
+        root.withdraw()
+        new_window.withdraw()
+
+        # Create the cash window
+        cash_window = tk.Toplevel(root)
+        cash_window.configure(bg="#508D4E")  # Dark background
+        set_fullscreen(cash_window)
+        cash_window.wm_attributes("-type", "override")
+
+        # Create the Back button to trigger the confirmation dialog
+        global Back_button
+        Back_button = tk.Button(
+            cash_window, text="Cancel", width=14, height=2, bg="lightgrey", fg="black",
+            font=("Arial", 24), bd=1, relief="solid",
+            command=lambda: confirm_cancel(new_window, cash_window)  # Trigger confirmation
+        )
+        Back_button.pack(side=tk.TOP, anchor='nw', padx=20, pady=20)    
+
+                # Create a main content frame with padding and solid borders
+        center_frame1 = tk.Frame(cash_window, bg="#508D4E")  # Outer background
+        center_frame1.pack(expand=True, fill=tk.BOTH, padx=20, pady=0)
+        center_frame = tk.Frame(center_frame1, bg="white", bd=1, relief="solid")  # Inner white frame with border
+        center_frame.pack(expand=True, fill=tk.BOTH, padx=400, pady=(80, 150))
+
+        # Header section with bold text and underline
+        header_label = tk.Label(
+            center_frame, 
+            text="Insert Exact Amount", 
+            font=("Arial", 26, "bold"), 
+            bg="white", 
+            fg="#4B3D8E"  # Use a modern color for the header
+        )
+        header_label.pack(pady=(30, 10))
+
+        # Sub-header for no-change notice
+        subheader_label = tk.Label(
+            center_frame, 
+            text="Change is not available. Thank you for understanding.", 
+            font=("Arial", 14, "italic"), 
+            bg="white", 
+            fg="gray"
+        )
+        subheader_label.pack(pady=(5, 20))
+
+        # Add a horizontal separator
+        separator_line = tk.Frame(center_frame, height=2, width=500, bg="#E0E0E0")
+        separator_line.pack(pady=(5, 20))
+
+        # Rice label for product name with modern styling
+        rice_label = tk.Label(
+            center_frame, 
+            text=rice_display, 
+            font=("Arial", 36, "bold"), 
+            bg="white", 
+            fg="#4B3D8E"
+        )
+        rice_label.pack(pady=(10, 20))
+
+        # Price display with emphasized design
+        price_label_frame = tk.Frame(center_frame, bg="white", bd=2, relief="ridge")
+        price_label_frame.pack(pady=(10, 20), padx=20)
+        price_label = tk.Label(
+            price_label_frame, 
+            text=f" Price: {price_var.get()} ", 
+            font=("Arial", 22, "bold"), 
+            bg="white", 
+            fg="#000000"  # Green for monetary emphasis
+        )
+        price_label.pack(padx=20, pady=10)
+
+        # Total inserted amount display
+        global coin_count_label
+        coin_count_label = tk.Label(
+            center_frame, 
+            text="Total Amount Inserted: ₱0.00", 
+            font=("Arial", 20), 
+            bg="white", 
+            fg="#000000"  # Modern teal for progress tracking
+        )
+        coin_count_label.pack(pady=(20, 10))
+
+        global processing_label
+        processing_label = tk.Label(center_frame, text="Processing...", font=("Arial", 24), bg="white", fg="#4B3D8E")
+        processing_label.pack_forget()  # Hide initially
+
+        # Instruction label with blinking effect
+        global blinkn_label
+        blinkn_label = tk.Label(
+            center_frame, 
+            text="Please insert coins or bills to proceed.", 
+            font=("Arial", 20, "bold"), 
+            bg="white", 
+            fg="#000000"  # Red for urgency
+        )
+        blinkn_label.pack(pady=(20, 10))
+        blink_label1(blinkn_label)
+
+        # Progress bar container with percentage display
+        global progress_bar
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure(
+            "green.Horizontal.TProgressbar",
+            troughcolor="#e0e0e0",
+            background="#4B3D8E",
+            thickness=70,
+        )
+
+        progress_bar = ttk.Progressbar(
+            center_frame,
+            style="green.Horizontal.TProgressbar",
+            length=700,
+            mode="determinate",
+        )
+        progress_bar.pack(pady=(30, 10))
+        progress_bar.pack_forget()
+
+        # Percentage label below the progress bar
+        percentage_label = tk.Label(center_frame, text="0%", font=("Arial", 22), bg="white", fg="#000000")
+        percentage_label.pack_forget()  # Hide initially
+
+        # Initialize monitoring for cash input
+        global monitoring
+        monitoring = True
+        threading.Thread(target=monitor_inputs, args=(cash_window, label_display, main_window, new_window, rice_display), daemon=True).start()
+
+        # Start dispensing rice
+        threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start()   
+
+"""
 def proceed(is_cash, new_window, main_window, rice_display, label_display):
     global pulse_count, bill_pulse_count, progress_bar, percentage_label  # Declare progress bar and percentage label as global
 
@@ -593,7 +696,10 @@ def proceed(is_cash, new_window, main_window, rice_display, label_display):
         center_frame1 = tk.Frame(cash_window, bg="#4B3D8E")  # Lighter purple background
         center_frame1.pack(expand=True, fill=tk.BOTH, padx=20, pady=0)
         center_frame = tk.Frame(center_frame1, bg="white", bd=1, relief="solid")  # Lighter purple background
-        center_frame.pack(expand=True, fill=tk.BOTH, padx=500, pady=(100, 300))
+        center_frame.pack(expand=True, fill=tk.BOTH, padx=500, pady=(100, 200))
+
+        no_change = tk.Label(center_frame, text="Please insert the exact amount. Change is not available.", font=("Arial", 18, 'bold'), bg="white", fg="black")
+        no_change.pack(pady=(30, 30))
 
         # Rice label
         rice_label = tk.Label(center_frame, text=rice_display, font=("Arial", 48, 'bold'), bg="white", fg="black")
@@ -648,9 +754,9 @@ def proceed(is_cash, new_window, main_window, rice_display, label_display):
         threading.Thread(target=monitor_inputs, args=(cash_window, label_display, main_window, new_window, rice_display), daemon=True).start()
 
         # Start dispensing rice
-        threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start()   
+        threading.Thread(target=dispense_rice, args=(label_display, price_var.get(), new_window, cash_window, rice_display), daemon=True).start() """
 
-def cleanup():
+def cleanup1():
     global monitoring
     monitoring = False
     try:
@@ -659,159 +765,44 @@ def cleanup():
     except Exception as e:
         print(f"Error during GPIO cleanup: {e}")
 
-open_button = None
-from gpiozero import Servo
-
-# Define GPIO pins for servos
-servo_pin1 = 24
-servo_pin2 = 22
-servo_pin3 = 25
-servo_open_pin = 27
-
-# HX711 setup for load cell
-hx = HX711(dout=5, pd_sck=6)
+hx = HX711(dout=16, pd_sck=5)
 hx.set_offset(8504030.4)  # Calibrated offset
 hx.set_scale(89.6353448)  # Calibrated scale
 
-FIXED_TARE_WEIGHT = 230.0  # Fixed tare weight in grams
+FIXED_TARE_WEIGHT = 100  # Fixed tare weight in grams
 WEIGHT_TOLERANCE = 100
 
-# Create Servo instances for each pin
-servo1 = Servo(servo_pin1)
-servo2 = Servo(servo_pin2)
-servo3 = Servo(servo_pin3)
-servo_open = Servo(servo_open_pin)
+import requests
+import time
 
-# Map servos to their respective instances
-servo_dict = {
-    1: servo1,
-    2: servo2,
-    3: servo3,
-    4: servo_open
-}
+esp8266_ip = "http://192.168.130.148"  # Replace with the ESP8266 IP
 
-# Track servo states
-servo_states = {
-    1: "closed",
-    2: "closed",
-    3: "closed",
-    4: "closed"
-}
-
-def rotate_servo_to(angle, servo_id):
-    """Rotate the servo to the specified angle (0 to 50 degrees)."""
-    # Check if the servo is already in the desired state
-    if angle == 50 and servo_states[servo_id] == "open":
-        print(f"Servo {servo_id} is already open.")
+def rotate_servo(angle, servo_id):
+    """Send a command to the ESP8266 to rotate a servo."""
+    if servo_id not in [1, 2, 3, 4]:
+        print("Invalid servo ID. Use 1, 2, 3, or 4.")
         return
-    if angle == 0 and servo_states[servo_id] == "closed":
-        print(f"Servo {servo_id} is already closed.")
+    if angle not in [10, 40]:  # Restrict to open (80) and close (10)
+        print("Invalid angle. Use 10 or 40.")
         return
 
-    print(f"Rotating Servo {servo_id} to {angle} degrees.")
-    
-    # Map the angle (0 to 50) to -1 to 1 for gpiozero's Servo
-    servo_position = (angle / 50.0) - 1  # Maps 0 -> -1, 50 -> 1
-
-    # Apply the rotation
-    servo_dict[servo_id].value = servo_position
-
-    # Wait for rotation completion (adjust timing based on your servo speed)
-    wait_time = abs(angle) * 0.01
-    print(f"Waiting {wait_time:.2f} seconds for Servo {servo_id} to complete.")
-    time.sleep(wait_time)
-
-    # Update servo state
-    servo_states[servo_id] = "open" if angle == 50 else "closed"     
+    url = f"{esp8266_ip}/servo/{servo_id}?angle={angle}"
+    try:
+        response = requests.get(url, timeout=5)  # Add a timeout for requests
+        if response.status_code == 200:
+            print(f"Servo {servo_id} rotated to {angle} degrees.")
+        else:
+            print(f"Failed to rotate servo {servo_id}. Status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error communicating with ESP8266: {e}")
 
 import tkinter as tk
 
 # Blinking label effect
-def blink_label(label):
-    current_color = label.cget("fg")
-    next_color = "red" if current_color == "green" else "green"
-    label.config(fg=next_color)
-    label.after(500, blink_label, label)
+
 
 import datetime
 import random
-
-"""def rice_dispensed1(new_window, cash_window, total_weight_to_dispense, total_amount, label_display, rice_display):
-    dispensed_window = tk.Toplevel(root)
-    dispensed_window.wm_attributes("-type", "override")
-    dispensed_window.configure(bg="#f4f4f4")  # Soft background color
-
-    # Define window size
-    window_width = 1000
-    window_height = 700
-
-    # Get screen width and height
-    screen_width = dispensed_window.winfo_screenwidth()
-    screen_height = dispensed_window.winfo_screenheight()
-
-    # Calculate x and y coordinates for centering the window    
-    x = (screen_width // 2) - (window_width // 2)
-    y = (screen_height // 2) - (window_height // 2)
-
-    # Set the geometry of the window
-    dispensed_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-    # Create a frame for the receipt details
-    receipt_frame = tk.Frame(dispensed_window, bg="white", relief="solid", bd=2, padx=10, pady=10)
-    receipt_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
-
-    # Receipt title
-    receipt_title = tk.Label(receipt_frame, text="Transaction Success!", font=("Arial", 24, "bold"), bg="#ffffff", fg="green")
-    receipt_title.pack(pady=(10, 20))
-
-    # Transaction ID
-    transaction_id = f"TXN-{random.randint(100000, 999999)}"
-    transaction_id_label = tk.Label(receipt_frame, text=f"Transaction ID: {transaction_id}", font=("Arial", 16), bg="#ffffff", fg="#333333")
-    transaction_id_label.pack(anchor="w", pady=(10, 5))
-
-    # Date and time
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    datetime_label = tk.Label(receipt_frame, text=f"Date & Time: {current_time}", font=("Arial", 16), bg="#ffffff", fg="#333333")
-    datetime_label.pack(anchor="w", pady=(5, 10))
-
-    # Divider line
-    divider = tk.Label(receipt_frame, text="-" * 60, font=("Arial", 12), bg="#ffffff", fg="#cccccc")
-    divider.pack(fill="x", pady=10)
-
-    # Rice type
-    rice_type_label = tk.Label(receipt_frame, text=f"Rice Type: {rice_display}", font=("Arial", 18), bg="#ffffff", fg="#333333")
-    rice_type_label.pack(anchor="w", pady=(5, 5))
-
-    # Rice price
-    price_label = tk.Label(receipt_frame, text=f"Price per Unit: {label_display}", font=("Arial", 18), bg="#ffffff", fg="#333333")
-    price_label.pack(anchor="w", pady=(5, 5))
-
-    # Total weight of rice dispensed
-    label_rice_calculate = total_weight_to_dispense - FIXED_TARE_WEIGHT
-    rice_dispensed_label = tk.Label(receipt_frame, text=f"Quantity of Rice: {label_rice_calculate:.2f} grams", font=("Arial", 18), bg="#ffffff", fg="#333333")
-    rice_dispensed_label.pack(anchor="w", pady=(5, 5))
-
-    # Total amount inserted
-    total_amount_label = tk.Label(receipt_frame, text=f"Total Amount Inserted: {total_amount:.2f} PHP", font=("Arial", 18), bg="#ffffff", fg="#333333")
-    total_amount_label.pack(anchor="w", pady=(5, 5))
-
-    # Divider line
-    divider = tk.Label(receipt_frame, text="-" * 60, font=("Arial", 12), bg="#ffffff", fg="#cccccc")
-    divider.pack(fill="x", pady=10)
-
-    # Thank you message
-    confirmation_label = tk.Label(receipt_frame, text="Thank you for your purchase!", font=("Arial", 18, "bold"), bg="#ffffff", fg="green")
-    confirmation_label.pack(pady=20)
-
-    # Blinking label for bag/container instructions
-    bag_label = tk.Label(receipt_frame, text="Please put your bag/container in the rice release.", font=("Arial", 14, "italic"), bg="#ffffff", fg="green")
-    bag_label.pack(pady=(10, 20))
-
-    # Start blinking effect for bag label
-    blink_label(bag_label)
-
-    monitor_bag_and_release(new_window, cash_window)
-    dispensed_window.update_idletasks()"""
 
 def insert_transaction(transaction_id, date_time, rice_type, price_per_unit, weight_dispensed, total_amount, payment_method, status):
     try:
@@ -843,29 +834,103 @@ def insert_transaction(transaction_id, date_time, rice_type, price_per_unit, wei
             cursor.close()
             connection.close()
 
-            
+
+from tkinter import ttk
+def dispense_rice(label_display, price, new_window, cash_window, rice_display):
+    """Dispense rice based on the price and selected servo, and update the progress bar."""
+
+    def rotate_and_dispense():
+        try:
+            match = re.search(r'(\d+\.?\d*)\s*(?:klg|kg|per\s*kg)', label_display, re.IGNORECASE)
+            if not match:
+                raise ValueError("Invalid label display format")
+
+            price_per_kg = float(match.group(1))
+            weight_to_dispense = (price / price_per_kg) * 1000  # Convert to grams
+            total_weight_to_dispense = weight_to_dispense + FIXED_TARE_WEIGHT  # Include tare weight
+            progress_bar["maximum"] = weight_to_dispense  # Set max for progress bar
+
+            cash_window.after(0, lambda: processing_label.pack(pady=30))
+            cash_window.after(0, lambda: progress_bar.pack(pady=15))
+            cash_window.after(0, lambda: percentage_label.pack(pady=(10, 0)))  # Show percentage label
+            blinkn_label.pack_forget()  # Hide blinking label
+
+            # Start dispensing by rotating the servo
+            print(f"Starting rice dispensing for Servo {selected_servo}.")
+            rotate_servo(40, selected_servo)  # Open servo
+            initial_weight = hx.get_grams(10)  # Initial reading from load cell
+            current_weight = 0.0
+
+            print(f"Initial weight: {initial_weight:.2f} grams")
+            MAX_VALID_WEIGHT = 7100.0
+
+            # Monitor the current weight
+            while current_weight < total_weight_to_dispense:
+                total_weight = hx.get_grams(10) + FIXED_TARE_WEIGHT
+                raw_weight = total_weight - initial_weight
+
+                if raw_weight < 0:
+                    print("Invalid weight reading, retrying...")
+                    time.sleep(0.1)
+                    continue 
+
+                if total_weight > MAX_VALID_WEIGHT:
+                    print(f"Erratic reading: {total_weight:.2f} grams. Ignoring...")
+                    time.sleep(0.1)  # Delay before rechecking
+                    continue  # Skip this invalid reading
+
+                # Handle valid weight readings
+                if raw_weight >= 0:
+                    current_weight = raw_weight
+                    print(f"Current weight dispensed: {current_weight:.2f} grams")
+
+                # Calculate and handle valid percentage
+                percentage = (current_weight / total_weight_to_dispense) * 100
+                if percentage > 100:  # Ensure percentage does not exceed 100
+                    percentage = 100
+
+                progress_bar["value"] = current_weight
+                percentage_label.config(text=f"{percentage:.0f}%")  # Update percentage label
+                processing_label.config(text="Processing...")
+                cash_window.update_idletasks()  # Refresh UI
+
+                if current_weight >= total_weight_to_dispense:
+                    print("Target weight reached. Closing the servo.")
+                    rotate_servo(10, selected_servo)  # Close servo
+                    progress_bar["value"] = total_weight_to_dispense
+                    percentage_label.config(text="100%")  # Ensure 100% is displayed
+                    cash_window.update_idletasks()
+                    rice_dispensed1(new_window, cash_window, total_weight_to_dispense, total_amount, label_display, rice_display)  # Use current_weight
+                    break
+
+                time.sleep(0.1)
+
+        except Exception as e:
+            print(f"Error during rice dispensing: {e}")
+    threading.Thread(target=rotate_and_dispense, daemon=True).start()
+    
 def rice_dispensed1(new_window, cash_window, total_weight_to_dispense, total_amount, label_display, rice_display):
-    dispensed_window = tk.Toplevel(root)
-    dispensed_window.wm_attributes("-type", "override")
-    dispensed_window.configure(bg="#f4f4f4")  # Soft background color
+    dispensed_window1 = tk.Toplevel(root)
+    dispensed_window1.wm_attributes("-type", "override")
+    dispensed_window1.configure(bg="#f4f4f4")  # Soft background color
 
     # Define window size
     window_width = 500
     window_height = 700
 
     # Get screen width and height
-    screen_width = dispensed_window.winfo_screenwidth()
-    screen_height = dispensed_window.winfo_screenheight()
+    screen_width = dispensed_window1.winfo_screenwidth()
+    screen_height = dispensed_window1.winfo_screenheight()
 
     # Calculate x and y coordinates for centering the window    
     x = (screen_width // 2) - (window_width // 2)
     y = (screen_height // 2) - (window_height // 2)
 
     # Set the geometry of the window
-    dispensed_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+    dispensed_window1.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
     # Create a frame for the receipt details
-    receipt_frame = tk.Frame(dispensed_window, bg="white", relief="solid", bd=2, padx=10, pady=10)
+    receipt_frame = tk.Frame(dispensed_window1, bg="white", relief="solid", bd=2, padx=10, pady=10)
     receipt_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
 
     # Receipt title
@@ -926,156 +991,241 @@ def rice_dispensed1(new_window, cash_window, total_weight_to_dispense, total_amo
         payment_method="Cash",  # Or "GCash", based on your implementation
         status="success"
     )
+    monitor_bag_and_release(total_weight_to_dispense,new_window, cash_window)
 
-    monitor_bag_and_release(new_window, cash_window)
-    dispensed_window.update_idletasks()
-
-from tkinter import ttk
-
-def dispense_rice(label_display, price, new_window, cash_window, rice_display):
-    """Dispense rice based on the price and selected servo, and update the progress bar."""
-
-    def rotate_and_dispense():
-        try:
-            match = re.search(r'(\d+\.?\d*)\s*(?:klg|kg|per\s*kg)', label_display, re.IGNORECASE)
-            if not match:
-                raise ValueError("Invalid label display format")
-
-            price_per_kg = float(match.group(1))
-            weight_to_dispense = (price / price_per_kg) * 1000  # Convert to grams
-            total_weight_to_dispense = weight_to_dispense + FIXED_TARE_WEIGHT  # Include tare weight
-            progress_bar["maximum"] = total_weight_to_dispense  # Set max for progress bar
-
-            cash_window.after(0, lambda: processing_label.pack(pady=30))
-            cash_window.after(0, lambda: progress_bar.pack(pady=15))
-            cash_window.after(0, lambda: percentage_label.pack(pady=(10, 0)))  # Show percentage label
-            blinkn_label.pack_forget()  # Hide blinking label
-
-            # Start dispensing by rotating the servo
-            print(f"Starting rice dispensing for Servo {selected_servo}.")
-            rotate_servo_to(50, selected_servo)  # Open servo
-            initial_weight = hx.get_grams(10)  # Initial reading from load cell
-            current_weight = 0.0
-
-            print(f"Initial weight: {initial_weight:.2f} grams")
-
-            # Monitor the current weight
-            while current_weight < total_weight_to_dispense:
-                total_weight = hx.get_grams(10) + FIXED_TARE_WEIGHT
-                raw_weight = total_weight - initial_weight
-
-                if raw_weight < 0:
-                    print("Invalid weight reading, retrying...")
-                    time.sleep(0.1)
-                    continue    
-
-                current_weight = raw_weight
-                progress_bar["value"] = current_weight
-                percentage = (current_weight / total_weight_to_dispense) * 100
-                percentage_label.config(text=f"{percentage:.0f}%")  # Update percentage label
-                processing_label.config(text="Processing...")
-                cash_window.update_idletasks()  # Refresh UI
-
-                if current_weight >= total_weight_to_dispense:
-                    print("Target weight reached. Closing the servo.")
-                    rotate_servo_to(0, selected_servo)  # Close servo
-                    progress_bar["value"] = total_weight_to_dispense
-                    percentage_label.config(text="100%")  # Ensure 100% is displayed
-                    cash_window.update_idletasks()
-                    rice_dispensed1(new_window, cash_window, total_weight_to_dispense, total_amount, label_display, rice_display)  # Use current_weight
-                    break
-
-                time.sleep(0.1)
-
-        except Exception as e:
-            print(f"Error during rice dispensing: {e}")
-
-    threading.Thread(target=rotate_and_dispense, daemon=True).start()
-
-from gpiozero import DistanceSensor
-TRIGGER_PIN = 16 
-ECHO_PIN = 26  
-ultrasonic = DistanceSensor(echo=ECHO_PIN, trigger=TRIGGER_PIN, max_distance=2)
-
+import lgpio as GPIO
+import time
 from collections import deque
 
-def monitor_bag_and_release(new_window, cash_window):
+# Set GPIO pins
+TRIG = 6 
+ECHO = 12  
+
+# Open the GPIO chip and set the GPIO direction
+h = GPIO.gpiochip_open(0)
+GPIO.gpio_claim_output(h, TRIG)
+GPIO.gpio_claim_input(h, ECHO)
+
+# Function to measure distance
+def get_distance():
+    # Set TRIG LOW
+    GPIO.gpio_write(h, TRIG, 0)
+    time.sleep(0.002)
+
+    # Send 10us pulse to TRIG
+    GPIO.gpio_write(h, TRIG, 1)
+    time.sleep(0.00001)
+    GPIO.gpio_write(h, TRIG, 0)
+
+    # Start recording the time when the wave is sent
+    while GPIO.gpio_read(h, ECHO) == 0:
+        pulse_start = time.time()
+
+    # Record time of arrival
+    while GPIO.gpio_read(h, ECHO) == 1:
+        pulse_end = time.time()
+
+    # Calculate the difference in times
+    pulse_duration = pulse_end - pulse_start
+
+    # Multiply with the sonic speed (34300 cm/s)
+    # and divide by 2, because there and back
+    distance = pulse_duration * 17150
+    return round(distance, 2)
+
+# Function to monitor bag and release rice
+def monitor_bag_and_release(total_weight_to_dispense, new_window, cash_window):
     """Check for a bag using an ultrasonic sensor and release rice when detected."""
     print("Waiting for bag detection...")
     bag_detected = False
-
     distance_readings = deque(maxlen=5)
 
-    while not bag_detected: 
-        distance = ultrasonic.distance * 100  # Convert to cm
+    while not bag_detected:
+        distance = get_distance()
         distance_readings.append(distance)
         average_distance = sum(distance_readings) / len(distance_readings)
         print(f"Average Distance: {average_distance:.2f} cm")
 
-        if average_distance < 10: 
+        if average_distance < 30: 
             print("Bag detected!")
             bag_detected = True
-            open_servo_and_release_rice(new_window, cash_window)
+            open_servo_and_release_rice(total_weight_to_dispense)
         else:
             print("No bag detected. Waiting...")
             time.sleep(0.5)  # Check every 500ms
 
-def open_servo_and_release_rice(dispensed_window, cash_window):
+def open_servo_and_release_rice(total_weight_to_dispense):
     """
     Use the ultrasonic sensor to detect a bag/container and open Servo 4 for rice release.
-    Close the servo when the bag is removed and all rice is released.
+    Close the servo temporarily when no bag is detected, and wait for the user to place the bag back to continue dispensing.
     """
-    print("Monitoring for bag/container using ultrasonic sensor...")
+    print("Monitoring for bag/container and dispensing rice...")
     distance_readings = deque(maxlen=5)  # Store the last 5 distance readings
     is_servo_open = False
+    initial_weight = hx.get_grams(10)  # Take 10 readings for stability
+    print(f"Initial weight (tare): {initial_weight:.2f} grams")
+    total_weight_to_dispense1 = total_weight_to_dispense
+    total_weight_to_dispense2 = total_weight_to_dispense1
 
     while True:
-        # Measure distance from ultrasonic sensor
-        distance = ultrasonic.distance * 100  # Convert to cm
+        distance = get_distance()
         distance_readings.append(distance)
         average_distance = sum(distance_readings) / len(distance_readings)
         print(f"Average Distance: {average_distance:.2f} cm")
 
-        # Open servo when a bag is detected (<10 cm)
-        if average_distance < 10 and not is_servo_open:
+        if average_distance < 40 and not is_servo_open:
             print("Bag detected! Opening Servo 4.")
-            rotate_servo_to(20, 4)  # Open Servo 4
+            rotate_servo(40, 4)
             is_servo_open = True
 
-        # Close servo when no bag is detected
-        elif average_distance >= 10 and is_servo_open:
+        elif average_distance >= 40 and is_servo_open:
             print("Bag removed! Closing Servo 4.")
-            rotate_servo_to(0, 4)  # Close Servo 4
+            rotate_servo(10, 4)
             is_servo_open = False
-            break
+            
+        # Monitor the current weight while the servo is open
+        if is_servo_open:
+            current_weight = hx.get_grams(10)  # Average over 10 readings
+            weight_reduction = initial_weight - current_weight  # Calculate reduction
+            MAX_VALID_WEIGHT = 7100.0
 
-        time.sleep(0.1)  # Wait 100 ms before the next reading
-    # Destroy the dispensed window and reset the system
-    dispensed_window.destroy()
-    close_and_restart(cash_window)
+            # Check if the reading is within a valid range
+            if current_weight > MAX_VALID_WEIGHT:
+                print(f"Erratic reading detected: {current_weight:.2f} grams. Ignoring...")
+                time.sleep(0.1)  # Delay before rechecking
+                continue  # Skip this invalid reading
+
+            # Handle valid weight reduction
+            print(f"Weight reduction: {weight_reduction:.2f} grams")
+
+            # Check if all rice is dispensed
+            if weight_reduction >= total_weight_to_dispense2:
+                print("Target weight dispensed. Closing the servo.")
+                rotate_servo(10, 4)
+                is_servo_open = False
+                break
+
+            if weight_reduction < 0:
+                print("Invalid weight reading. Retrying...")
+                time.sleep(0.1)
+                continue
+
+        time.sleep(0.1)
+
+    # All rice dispensed
+    print("Dispensing complete. Restarting system.")
+    close_and_restart()
+
+def cleanup_hx711(hx):
+    """Cleanup HX711 GPIO resources."""
+    try:
+        hx.cleanup()
+        print("HX711 resources cleaned up.")
+    except Exception as e:
+        print(f"Error during HX711 cleanup: {e}")
+
+def global_gpio_cleanup():
+    """Release all GPIO resources."""
+    try:
+        GPIO.gpiochip_close(h)  # Close the GPIO chip
+        print("All GPIO resources released.")
+    except Exception as e:
+        print(f"Error during GPIO cleanup: {e}")
+
+def close_all_windows():
+    """Close all open windows, including the main root window."""
+    for window in root.winfo_children():
+        if isinstance(window, tk.Toplevel):  # Check if it's a Toplevel window
+            print(f"Closing window: {window}")
+            window.destroy()
+
+
+def close_and_restart():
+    """Close all windows and restart the program."""
+    try:
+        close_all_windows()  # Close all Tkinter windows
+        cleanup_hx711(hx)  # Clean up HX711 resources
+        global_gpio_cleanup()  # Release GPIO resources
+
+        time.sleep(1)  # Allow resources to release
+        print("Restarting the system...")
+        subprocess.Popen([sys.executable, sys.argv[0]])  # Restart script
+        sys.exit()
+    except Exception as e:
+        print(f"Error during restart: {e}")
 
 def disable_dispense_button():
     global open_button
     if open_button:
         open_button.config(state=tk.DISABLED)
-# Function to close the window and restart the script
-def close_and_restart(window, cash_window):
-    """Close all windows and restart the program."""
-    gpiozero.Device.pin_factory.close()
-    if cash_window:
-        cash_window.destroy() 
-    window.destroy()
-    subprocess.Popen([sys.executable, sys.argv[0]])  # Restart the script
-    sys.exit()
 
 def check_payment(cash_window, label_display, main_window, new_window,rice_display):
     global total_amount, price
 
     if total_amount >= price:
         print("Payment successful!")
-        cleanup()  # Ensure GPIO resources are freed
+        cleanup1()  # Ensure GPIO resources are freed
         dispense_rice(label_display, price, new_window, cash_window, rice_display)
 
+import webbrowser
+def create_gcash_payment(price):
+    # Prepare the data for the payment request
+    data = {
+        "amount": price,
+        "success_url": "https://rvm-4805.onrender.com/success",  # Replace with your actual success URL
+        "failure_url": "https://rvm-4805.onrender.com/failure",  # Replace with your actual failure URL
+    }
+    
+    # Send a POST request to the Xendit payment endpoint
+    response = requests.post("https://rvm-4805.onrender.com/create-payment", json=data)
+    
+    if response.status_code == 200:
+        payment_url = response.json().get("payment_url")
+        import os
+        if os.name == "nt":  # Windows
+            os.system(f"start {payment_url}")
+
+        elif os.name == "posix":  # macOS/Linux
+            os.system(f"open {payment_url}")
+    else:
+        show_custom_messagebox("Payment Error", "Error creating payment: " + response.text)
+
+
+"""PAYMONGO_API_KEY = 'sk_test_6zVNpSMrK2VwWCCjqGQyygzt' 
+PAYMONGO_API_URL = 'https://api.paymongo.com/v1/links'
+
+def create_gcash_payment_source(amount, description='GCash Payment'):
+    encoded_api_key = base64.b64encode(f'{PAYMONGO_API_KEY}:'.encode()).decode()
+
+    headers = {
+        'Authorization': f'Basic {encoded_api_key}',
+        'Content-Type': 'application/json',
+    }
+
+    data = {
+        'data': {
+            'attributes': {
+                'amount': int(amount * 100),  # Convert to centavos
+                'currency': 'PHP',
+                'description': description,
+                'redirect': {
+                    'success': 'http://yourdomain.com/success',
+                    'failed': 'http://yourdomain.com/failed',
+                },
+            }
+        }
+    }
+
+    response = requests.post(PAYMONGO_API_URL, headers=headers, json=data)
+    response_data = response.json()
+
+    if response.status_code == 201:
+        payment_url = response_data['data']['attributes']['checkout_url']
+        return payment_url
+    else:
+        print(f"Error creating GCash payment: {response_data}")
+        return None
+ 
 def generate_gcash_qr(price, new_window):   
     payment_url = "https://pm.link/helloword-ricevendingmachine/test/GtA2ia9"
     if payment_url:
@@ -1105,7 +1255,7 @@ def show_qr_window(img_path, new_window):
     # Create a new top-level window
     new_window.withdraw()
     qr_window = tk.Toplevel(root)
-    qr_window.configure(bg="#363062")
+    qr_window.configure(bg="#508D4E")
     set_fullscreen(qr_window)
     qr_window.wm_attributes("-type", "override")
     
@@ -1120,7 +1270,7 @@ def show_qr_window(img_path, new_window):
     # Create a label to hold the image and pack it
     qr_label = tk.Label(qr_window, image=qr_photo)
     qr_label.image = qr_photo  # Keep a reference to avoid garbage collection
-    qr_label.pack(pady=20)
+    qr_label.pack(pady=20)"""
 
 def fetch_images_from_db(image_ids):
     # Replace with your MySQL connection details
@@ -1215,7 +1365,7 @@ def set_fullscreen(window):
 def second_window(event=None):
     root.withdraw()
     main_window = tk.Toplevel(root)
-    main_window.configure(bg="#363062")
+    main_window.configure(bg="#ffffff")
     set_fullscreen(main_window)
     main_window.wm_attributes("-type", "override")
 
@@ -1224,46 +1374,54 @@ def second_window(event=None):
     button_font = ("Arial", 38)
 
     # Create a frame for buttons
-    button_frame = tk.Frame(main_window, bg="#363062")
+    button_frame = tk.Frame(main_window, bg="#ffffff")
     button_frame.pack(fill=tk.BOTH, expand=True)
-    
+
     # Configure rows and columns to expand
     for i in range(3):
         button_frame.columnconfigure(i, weight=1)
         button_frame.rowconfigure(0, weight=1)
 
     # Create button frames for each column
-    
-    button_frame1 = tk.Frame(button_frame, bg="#363062", width=550, height=1000, relief="solid", borderwidth=1)
+    button_frame1 = tk.Frame(button_frame, bg="#ffffff", width=550, height=1000, relief="solid", borderwidth=0.5)
     button_frame1.grid(row=0, column=0, padx=10, pady=20, sticky="nsew")
 
-    button_frame2 = tk.Frame(button_frame, bg="#363062", width=550, height=1000, relief="solid", borderwidth=1)
+    button_frame2 = tk.Frame(button_frame, bg="#ffffff", width=550, height=1000, relief="solid", borderwidth=0.5)
     button_frame2.grid(row=0, column=1, padx=10, pady=20, sticky="nsew")
 
-    button_frame3 = tk.Frame(button_frame, bg="#363062", width=550, height=1000, relief="solid", borderwidth=1)
+    button_frame3 = tk.Frame(button_frame, bg="#ffffff", width=550, height=1000, relief="solid", borderwidth=0.5)
     button_frame3.grid(row=0, column=2, padx=10, pady=20, sticky="nsew")
 
+    button_frame1.bind("<Button-1>", lambda e: open_home_window(1, button1.cget("text"), label1.cget("text"), main_window))
+    button_frame2.bind("<Button-1>", lambda e: open_home_window(2, button2.cget("text"), label2.cget("text"), main_window))
+    button_frame3.bind("<Button-1>", lambda e: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
+
     # Create image labels and position them at the top of each button frame
-    img1 = tk.Label(button_frame1, bg="#363062")  # Placeholder for image
+    img1 = tk.Label(button_frame1, bg="#ffffff")  # Placeholder for image
     img1.place(relx=0.5, rely=0.03, anchor="n")  # Position at the top
 
-    img2 = tk.Label(button_frame2, bg="#363062")  # Placeholder for image
+    img2 = tk.Label(button_frame2, bg="#ffffff")  # Placeholder for image
     img2.place(relx=0.5, rely=0.03, anchor="n")  # Position at the top
 
-    img3 = tk.Label(button_frame3, bg="#363062")  # Placeholder for image
+    img3 = tk.Label(button_frame3, bg="#ffffff")  # Placeholder for image
     img3.place(relx=0.5, rely=0.03, anchor="n")  # Position at the top
+
+    # Bind click events to each label
+    img1.bind("<Button-1>", lambda e: open_home_window(1, button1.cget("text"), label1.cget("text"), main_window))
+    img2.bind("<Button-1>", lambda e: open_home_window(2, button2.cget("text"), label2.cget("text"), main_window))
+    img3.bind("<Button-1>", lambda e: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
 
     # Create text labels for each image
     global label1
-    label1 = tk.Label(button_frame1, text="", font=("Arial", 24, "bold"), fg="white", bg="#363062")
+    label1 = tk.Label(button_frame1, text="", font=("Arial", 24, "bold"), fg="black", bg="#ffffff")
     label1.place(relx=0.5, rely=0.6, anchor="center")  # Centered in button_frame1
 
     global label2
-    label2 = tk.Label(button_frame2, text="40 per kg", font=("Arial", 24, "bold"), fg="white", bg="#363062")
+    label2 = tk.Label(button_frame2, text="40 per kg", font=("Arial", 24, "bold"), fg="black", bg="#ffffff")
     label2.place(relx=0.5, rely=0.6, anchor="center")  # Centered in button_frame2
 
     global label3
-    label3 = tk.Label(button_frame3, text="40 per kg", font=("Arial", 24, "bold"), fg="white", bg="#363062")
+    label3 = tk.Label(button_frame3, text="40 per kg", font=("Arial", 24, "bold"), fg="black", bg="#ffffff")
     label3.place(relx=0.5, rely=0.6, anchor="center")  # Centered in button_frame3
 
     # Create buttons inside the frames, positioned at the bottom of each frame
@@ -1282,8 +1440,12 @@ def second_window(event=None):
                         bg="#508D4E", fg="white", font=button_font, command=lambda: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
     button3.place(relx=0.5, rely=0.82, anchor="center")  # Position at the bottom of button_frame3
 
+    button1.bind("<Button-1>", lambda e: open_home_window(1, button1.cget("text"), label1.cget("text"), main_window))
+    button2.bind("<Button-1>", lambda e: open_home_window(2, button2.cget("text"), label2.cget("text"), main_window))
+    button3.bind("<Button-1>", lambda e: open_home_window(3, button3.cget("text"), label3.cget("text"), main_window))
+
     fetch_data_and_display()
-    display_images([img1, img2, img3], [1, 2, 3])  
+    display_images([img1, img2, img3], [1, 2, 3])
 
 # Create the main window
 root = tk.Tk()
@@ -1292,8 +1454,9 @@ set_fullscreen(root)
 root.wm_attributes("-type", "override")
 root.wm_title("")  # This line is already in your code, but it's not working because you're setting the window to full screen
 gif = AnimatedGIF(root, "/home/heartryan/my_raspberry_pi_project/1022(7).gif", 
-                           width=1020, height=820,interval=100)
+                           width=820, height=620,interval=100)
 gif.bind_click(second_window)
+# Create some windows
 
 root.mainloop()
 

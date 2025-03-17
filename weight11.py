@@ -164,10 +164,6 @@ load_dotenv()
 XENDIT_SECRET_KEY = os.getenv("XENDIT_SECRET_KEY")
 X_CALLBACK_TOKEN = os.getenv("X_CALLBACK_TOKEN")
 
-# Validate environment variables
-if not XENDIT_SECRET_KEY or not X_CALLBACK_TOKEN:
-    raise EnvironmentError("Missing XENDIT_SECRET_KEY or X_CALLBACK_TOKEN.")
-
 BASE_URL = "https://api.xendit.co"
 
 app = Flask(__name__)

@@ -1250,7 +1250,7 @@ def show_qr_window(img_path, new_window):
     qr_label = tk.Label(qr_window, image=qr_photo)
     qr_label.image = qr_photo  # Keep a reference to avoid garbage collection
     qr_label.pack(pady=20)"""
-PAYMONGO_API_KEY = 'sk_test_6zVNpSMrK2VwWCCjqGQyygzt' 
+PAYMONGO_API_KEY = 'sk_test_Bt715IimQYohldV3tfOaq2' 
 PAYMONGO_API_URL = 'https://api.paymongo.com/v1/links'
 
 def create_gcash_payment_source(amount, description='GCash Payment'):
@@ -1286,7 +1286,7 @@ def create_gcash_payment_source(amount, description='GCash Payment'):
         return None
  
 def generate_gcash_qr(price, new_window):   
-    payment_url = "https://pm.link/helloword-ricevendingmachine/test/GtA2ia9"
+    payment_url = create_gcash_payment_source(price, "Rice Vending Machine Payment")
     if payment_url:
         # Generate QR code
         qr = qrcode.QRCode(
